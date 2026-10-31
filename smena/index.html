@@ -514,7 +514,7 @@ function buildPlan(cfg,pid,date){
       let due=t.due?toMin(t.due):close+30;if(due<open)due+=1440;
       plan.push({k:t.id,blk:'close',...base,start:at(close-90),dl:at(due)});
     }else if(Array.isArray(t.times)&&t.times.length){
-      t.times.forEach((tt,i)=>{let m=toMin(tt);if(m<open)m+=1440;if(m>close)return;
+      t.times.forEach((tt,i)=>{let m=toMin(tt);if(m<open&&open-m<=180)m=open;else if(m<open)m+=1440;if(m>close)return;
         plan.push({k:`${t.id}@${i}`,blk:'during',...base,slot:'в '+hm(m),start:at(Math.max(open,m-15)),dl:at(m+30)});});
     }else if(t.due){
       let m=toMin(t.due);if(m<open)m+=1440;
