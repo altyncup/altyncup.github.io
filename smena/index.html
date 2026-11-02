@@ -588,6 +588,9 @@ function payHours(d,c){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.poi
 const onBreak=c=>{const b=c&&c.brk;const x=b&&b.length?b[b.length-1]:null;return x&&x.out&&!x.in?x:null;};
 const fmtH=x=>x==null?'—':(Math.round(x*100)/100).toString().replace('.',',');
 const fmtDur=min=>{min=Math.max(0,Math.round(min));const hh=Math.floor(min/60),mm=min%60;return hh?hh+' ч'+(mm?' '+mm+' мин':''):mm+' мин';};
+const firstIn=crew=>Object.values(crew||{}).filter(x=>x&&x.in).reduce((a,x)=>Math.min(a,x.in.at),Infinity);
+const isSub=(crew,c)=>!!(c&&c.in&&c.in.at-firstIn(crew)>60*6e4);
+const onDuty=(crew,c,it)=>!!(c&&c.in&&(c.in.at<=it.dl||c.in.at===firstIn(crew))&&(!c.out||c.out.at>=it.start));
 const isIn=pid=>{const b=me();return !!(b&&S.days[pid]?.crew?.[b]?.in);};
 const shortP=n=>String(n).replace(/\s+\S*\d\S*$/,'')||n;
 function monthStats(docs){
@@ -897,6 +900,7 @@ function leadIcon(it){
 }
 function taskAction(it,pid,date){
   if(!me())return{fn:pickSheet,label:'Выбрать себя',short:'Кто вы?'};
+  if(S.days[pid]?.crew?.[me()]?.out)return{fn:()=>toast('Вы уже отметили уход. Задачи теперь делает тот, кто на смене.'),label:'Вы ушли со смены',short:'Вы ушли'};
   if(!isIn(pid))return{fn:()=>needInSheet(pid),label:'Сначала отметьте приход',short:'Сначала приход',icon:I.cam};
   if(it.kind==='video')return{fn:()=>pickVideo(pid,date,it),label:'Снять видео',short:'Видео',icon:PLAY};
   if(it.items&&it.items.length)return{fn:()=>checklistSheet(pid,date,it),label:it.photo?'Открыть чек-лист':'Открыть чек-лист',short:'Чек-лист',icon:I.list};
@@ -1203,13 +1207,13 @@ function staffSheet(b,docs,key){
     const mine=plan.filter(it=>marks[it.k]&&marks[it.k].b===b);if(!(c&&c.in)&&!mine.length)continue;shifts++;
     let l=0;if(c&&c.in){l=lateBy(d.point,d.date,b,crew);if(l){lateN++;lateMin+=l;}}
     hours+=payHours(d,c)||0;
-    const past=d.date<S.today;const miss=plan.filter(i=>!i.opt&&!marks[i.k]&&(past||S.now>i.dl)).length;missed+=miss;
+    const past=d.date<S.today;const miss=plan.filter(i=>!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
     let bk=0;for(const it of mine){const m=marks[it.k];if(m.late)lateMarks++;if(isBackfill(marks,it,m)){back++;bk++;}}
     rows.push({d,c,l,miss,bk});}
   const kv=(n,t,bad)=>h('div',{class:'kbox'+(bad?' bad':'')},h('b',{text:String(n)}),h('span',{text:t}));
   const kids=[h('div',{class:'kgrid'},kv(shifts,'смен'),kv(lateN,lateN?`опозданий · ${fmtDur(lateMin)}`:'опозданий',lateN),kv(missed,'пропущено задач',missed),
     kv(lateMarks,'с опозданием',0),kv(back,'задним числом',back),kv(Math.round(hours),'часов')),
-    h('p',{class:'hint',text:'Пропущенные задачи считаются по сменам, где он был, — общие для всех на смене.'})];
+    h('p',{class:'hint',text:'Пропущенные задачи — только те, срок которых пришёлся на его время на смене. При замене в 14:00 вечерние отчёты не повесятся на ушедшего.'})];
   kids.push(rows.length?h('div',{class:'list'},rows.map(r=>h('button',{class:'prow act',onclick:()=>daySheet(r.d.point,r.d.date)},
     h('span',{},h('span',{class:'pt',text:`${fmtDay(r.d.date)} · ${shortP(pName(r.d.point))}`}),
       h('span',{class:'pm t-meta'},h('span',{text:r.c&&r.c.in?tm(r.c.in.at)+(r.c.out?'–'+tm(r.c.out.at):' · без ухода'):'без селфи прихода'}),
@@ -1324,7 +1328,7 @@ function arrivals(pid,doc,plan,marks){
   return h('div',{class:'arr'},
     arr.length?arr.map(([b,c])=>{const l=lateBy(pid,S.today,b,crew);
       return h('span',{class:'arr-i'},c.in.photo?h('img',{class:'av',src:blobUrl(c.in.photo),alt:''}):h('span',{class:'av none',text:'—'}),h('span',{text:bName(b)+' · '+tm(c.in.at)}),
-        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
+        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):isSub(crew,c)?h('span',{class:'chip gold',text:'на замену'}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
       :h('span',{class:'dim small',text:S.now<t.open?'Открытие в '+tm(t.open)+'. Приходов пока нет.':'Приход ещё никто не отметил'}),
     ph.length?h('div',{class:'oph'},ph.map(i=>h('figure',{},marks[i.k].video?h('span',{class:'vt',html:PLAY}):h('img',{src:blobUrl(marks[i.k].photo),alt:i.t,loading:'lazy'}),h('figcaption',{text:(i.kind==='video'?'Видео':shortTask(i))+' '+tm(marks[i.k].at)})))):null);
 }
@@ -1338,7 +1342,7 @@ function openChip(pid,plan,marks){
 function chronicle(pid){
   const doc=S.days[pid];const plan=planOf(pid,S.today,doc);const marks=doc?.marks||{};const crew=doc?.crew||{};const ev=[];
   for(const [b,c] of Object.entries(crew)){if(!c)continue;
-    if(c.in){const l=lateBy(pid,S.today,b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
+    if(c.in){const l=lateBy(pid,S.today,b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:isSub(crew,c)?['gold','на замену']:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
     for(const x of c.brk||[]){if(x.out)ev.push({at:x.out.at,photo:x.out.photo,title:'Отход · '+bName(b),chips:[x.in?null:['warn','отдыхает'],x.out.nv?['warn','без метки камеры']:null].filter(Boolean),cap:'Отход · '+bName(b)});
       if(x.in)ev.push({at:x.in.at,photo:x.in.photo,title:'Пришёл после отхода · '+bName(b),chips:[[x.in.at-x.out.at>70*6e4?'warn':'ok','отдых '+fmtDur((x.in.at-x.out.at)/6e4)]],cap:'Пришёл · '+bName(b)});}
     if(c.out){const hh=payHours({point:pid,date:S.today},c);ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[hh!=null?['','в табель '+fmtH(hh)+' ч']:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}}
