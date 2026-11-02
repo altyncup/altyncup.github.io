@@ -318,6 +318,21 @@ body.no-tabs .savebar{bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .av.none{display:grid;place-items:center;color:var(--on-night-2);font-size:12px}
 .oph{display:flex;gap:8px;flex-wrap:wrap}
 .oph figure{margin:0;display:grid;gap:3px;justify-items:center;font-size:11px;font-weight:800;color:var(--on-night-2)}
+.prow:has(.shots){grid-template-columns:minmax(0,1fr)}
+.pr.shots{flex-wrap:wrap}
+.tabel-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);-webkit-overflow-scrolling:touch;max-width:100%}
+.tabel{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
+.tabel th,.tabel td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tabel thead th{font-weight:800;color:var(--ink-2);background:var(--seg)}
+.tabel th.wk,.tabel td.wk{background:var(--gold-soft)}
+.tabel .nm{position:sticky;left:0;background:var(--surface);text-align:left;z-index:1;min-width:104px;border-right:1px solid var(--line)}
+.tabel thead .nm{background:var(--seg)}
+.tabel .nm b{display:block;font-weight:800}
+.tabel .nm small{color:var(--ink-2);font-weight:600}
+.tabel .tot{font-weight:900;color:var(--gold-ink)}
+.tabel td.miss{color:var(--danger);font-weight:900}
+.tabel td.live{color:var(--ink-2)}
+.tabel tbody tr:last-child>*{border-bottom:0}
 .oph img{width:58px;height:58px;border-radius:12px;object-fit:cover;box-shadow:0 0 0 2px var(--gold)}
 .crow{display:grid;grid-template-columns:44px 44px minmax(0,1fr);gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);width:100%;text-align:left}
 .crow:first-child{border-top:0}
@@ -503,7 +518,9 @@ function buildPlan(cfg,pid,date){
   const plan=[];
   for(const t of cfg.tasks||[]){
     if(t.off)continue;
+    if(Array.isArray(t.points)&&t.points.length&&!t.points.includes(pid))continue;
     const freq=t.freq||'daily';
+    if(freq==='handover')continue;
     if(freq==='weekly'&&d.getDay()!==Number(cfg.weeklyDay))continue;
     if(freq==='monthly'&&d.getDate()!==Math.min(Number(cfg.revisionDay)||30,dim))continue;
     const base={t:t.title,kind:t.kind||'check',photo:!!t.photo&&['check','pull'].includes(t.kind||'check'),opt:!!t.opt,freq};
@@ -565,6 +582,11 @@ function lateBy(pid,date,b,crew){
   if(c.in.at>first)return 0;
   const d=Math.round((c.in.at-pointTimes(pid,date).open)/6e4);return d>Number(S.cfg.lateMin??15)?d:0;
 }
+function payHours(d,c){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
+  let cap=toMin(S.cfg.payUntil||'23:00');if(base+cap*6e4<=t.open)cap+=1440;
+  const end=Math.min(c.out.at,base+cap*6e4,t.close),st=Math.max(c.in.at,t.open);return Math.max(0,end-st)/36e5;}
+const onBreak=c=>{const b=c&&c.brk;const x=b&&b.length?b[b.length-1]:null;return x&&x.out&&!x.in?x:null;};
+const fmtH=x=>x==null?'—':(Math.round(x*100)/100).toString().replace('.',',');
 const fmtDur=min=>{min=Math.max(0,Math.round(min));const hh=Math.floor(min/60),mm=min%60;return hh?hh+' ч'+(mm?' '+mm+' мин':''):mm+' мин';};
 const isIn=pid=>{const b=me();return !!(b&&S.days[pid]?.crew?.[b]?.in);};
 const shortP=n=>String(n).replace(/\s+\S*\d\S*$/,'')||n;
@@ -574,7 +596,7 @@ function monthStats(docs){
   for(const d of docs){
     const plan=d.plan||[],marks=d.marks||{};const sc=dayScore(plan,marks);const crew=d.crew||{};
     const okIn=b=>!reqIn||!!(crew[b]&&crew[b].in);
-    for(const [b,c] of Object.entries(crew))if(c&&c.in&&c.out)get(b).hours+=(c.out.at-c.in.at)/36e5;
+    for(const [b,c] of Object.entries(crew))get(b).hours+=payHours(d,c)||0;
     const clean=sc.req>0&&sc.done===sc.req&&sc.late===0;
     const people=new Set(Object.keys(crew).filter(okIn));
     for(const it of plan){const m=marks[it.k];if(!m||!m.b||!okIn(m.b))continue;people.add(m.b);const r=get(m.b);if(m.late){r.xp+=5;r.late++;}else{r.xp+=10;r.onTime++;}}
@@ -600,6 +622,11 @@ function failToast(e){
   if(c==='invalid_argument'||c==='not_granted')return toast('Нет прав на это действие. Если это ошибка — выйдите и войдите заново.');
   if(c==='already_in')return toast('Приход уже отмечен.');
   if(c==='not_in')return toast('Сначала отметьте приход.');
+  if(c==='still_sleeping')return toast('Сначала отметьте «Пришёл» после отхода.');
+  if(c==='already_out')return toast('Смена уже закрыта.');
+  if(c==='break_used')return toast('Отход за эту смену уже был.');
+  if(c==='no_break_right')return toast('Отход — только если вчера вы тоже были на смене.');
+  if(c==='not_sleeping')return toast('Отход не отмечен.');
   if(c==='quota_exceeded'||c==='quota_or_state')return toast('Место для данных закончилось. Сообщите владельцу.');
   if(c==='too_large')return toast('Фото слишком большое. Снимите ещё раз.');
   if(c==='bad_image')return toast('Не получилось прочитать фото. Снимите ещё раз.');
@@ -637,7 +664,7 @@ async function doCheck(pid,kind,file){
     const v=await enqueue(path,()=>rpc('crew_check',{p_day:path.split('/')[1],p_kind:kind,p_photo:id,p_nv:FRESH[id]===false}));const at=v.at;
     if(kind==='in'){const crew={...(S.days[pid]?.crew||{}),[b]:{...cur,in:v}};const l=lateBy(pid,S.today,b,crew);
       toast(l?`Приход отмечен в ${tm(at)}. Опоздание ${fmtDur(l)}.`:`Приход отмечен в ${tm(at)}. Хорошей смены, ${bName(b)}!`);}
-    else toast(`Уход в ${tm(at)}`+(cur.in?` · смена ${fmtDur((at-cur.in.at)/6e4)}`:'')+'. Спасибо за смену!');
+    else{const hh=payHours({point:pid,date:S.today},{...cur,out:v});toast(`Уход в ${tm(at)}`+(hh!=null?` · в табель ${fmtH(hh)} ч`:'')+'. Спасибо за смену!');}
   }catch(e){failToast(e);}finally{delete S.busy['ck'+pid];schedule();}
 }
 function checkIn(pid){if(!me()){pickSheet();return;}pickPhoto({selfie:true,cb:f=>doCheck(pid,'in',f)});}
@@ -651,6 +678,23 @@ function checkOutSheet(pid){
       h('button',{class:'btn gold',onclick:()=>{closeSheet();pickPhoto({selfie:true,cb:f=>doCheck(pid,'out',f)});}},'Селфи и уйти'))]);
 }
 const crewHas=(pid,b)=>!!S.days[pid]?.crew?.[b];
+function breakAllowed(){const b=me();if(!b)return false;const k=S.today+'|'+b;
+  if(!S.brkOk||S.brkOk.k!==k){S.brkOk={k,v:false};rpc('break_ok',{p_date:S.today}).then(v=>{if(S.brkOk.k===k){S.brkOk.v=!!v;schedule();}}).catch(()=>{});}
+  return S.brkOk.v;}
+async function doBreak(pid,kind,file){
+  const b=me();if(!b)return;S.busy['bk'+pid]=1;schedule();
+  try{const id=await uploadPhoto(file);const path=docPath(pid,S.today);
+    const prev=onBreak(S.days[pid]?.crew?.[b]);
+    const v=await enqueue(path,()=>rpc('crew_break',{p_day:path.split('/')[1],p_kind:kind,p_photo:id,p_nv:FRESH[id]===false}));
+    if(kind==='out')toast(`Отход в ${tm(v.at)}. Через час нажмите «Пришёл» и сфотографируйте время.`);
+    else toast(`Пришёл в ${tm(v.at)}`+(prev?` · отдых ${fmtDur((v.at-prev.out.at)/6e4)}`:'')+'.');
+  }catch(e){failToast(e);}finally{delete S.busy['bk'+pid];schedule();}
+}
+function breakSheet(pid){
+  openSheet('Отход на час',[h('p',{class:'hint',text:'Сфотографируйте часы или экран с временем — владелец увидит, во сколько вы ушли отдыхать. Через час нажмите «Пришёл» и снова сфотографируйте время. Отход — один раз за смену.'}),
+    h('div',{class:'btnrow'},h('button',{class:'btn ghost',onclick:closeSheet},'Отмена'),
+      h('button',{class:'btn gold',onclick:()=>{closeSheet();pickPhoto({cb:f=>doBreak(pid,'out',f)});}},'Фото и отход'))]);
+}
 async function sendReq(pid,what){
   if(S.reqs.some(q=>q.point===pid&&q.what===what&&q.status!=='done')){toast('Такой запрос уже ждёт ответа.');return;}
   const at=nowMs();
@@ -676,7 +720,7 @@ function aiTargets(pid){
   const doc=S.days[pid];const out=[];
   if(doc){
     for(const it of doc.plan||[]){const m=doc.marks?.[it.k];
-      if(m&&m.video&&!m.ai)out.push({video:m.video,task:it.t+' (3 кадра из видео: бар чистый, витрина заполнена, зал готов к открытию)',doc:docPath(pid,S.today),patch:ai=>({marks:{[it.k]:{ai}}})});
+      if(m&&m.video&&!m.ai)out.push({video:m.video,task:it.t+' (3 кадра из видео'+(it.hint?': '+it.hint:'')+')',doc:docPath(pid,S.today),patch:ai=>({marks:{[it.k]:{ai}}})});
       if(m&&m.photo&&!m.ai)out.push({id:m.photo,task:it.t+(it.kind==='pull'?' (на фото должен быть шот и таймер или весы)':''),doc:docPath(pid,S.today),patch:ai=>({marks:{[it.k]:{ai}}})});}
     for(const [b,c] of Object.entries(doc.crew||{}))for(const w of ['in','out'])if(c&&c[w]&&c[w].photo&&!c[w].ai)
       out.push({id:c[w].photo,task:(w==='in'?'Селфи при приходе':'Селфи при уходе')+': сотрудник у бара, кофемашина в кадре',doc:docPath(pid,S.today),patch:ai=>({crew:{[b]:{[w]:{ai}}}})});
@@ -871,7 +915,7 @@ function taskRow(it,m,ctx){
   let lead,onclick=null,trail=null,aria=label;
   if(busy){lead=h('span',{class:'tick busy'},h('span',{class:'spin'}));aria='Загружаю: '+label;}
   else if(m&&m.video){lead=h('span',{class:'tick done',html:PLAY});onclick=()=>openVideo(ctx.pid,ctx.date,it,m);aria='Видео снято: '+label+'. Посмотреть';}
-  else if(m&&m.photo){lead=h('span',{class:'thumb'},h('img',{src:blobUrl(m.photo),alt:'',loading:'lazy'}));onclick=()=>openPhoto(ctx.pid,ctx.date,it,m);aria='Сделано с фото: '+label+'. Открыть фото';}
+  else if(m&&m.photo){lead=h('span',{class:'thumb'},lazyImg(m.photo));onclick=()=>openPhoto(ctx.pid,ctx.date,it,m);aria='Сделано с фото: '+label+'. Открыть фото';}
   else if(m){lead=h('span',{class:'tick done',html:I.check});onclick=()=>openDone(ctx.pid,ctx.date,it,m);aria='Сделано: '+label+'. Подробнее';}
   else if(can){const a=taskAction(it,ctx.pid,ctx.date);lead=leadIcon(it);onclick=a.fn;trail=a.short;aria=a.label+': '+label;}
   else lead=leadIcon(it);
@@ -890,6 +934,7 @@ function taskRow(it,m,ctx){
   if(!m&&it.photo&&!trail&&!it.items)meta.append(h('span',{class:'chip gold',text:'фото'}));
   if(!m&&it.hint&&can)meta.append(h('span',{class:'t-hint',text:'В кадре: '+it.hint}));
   if(it.freq==='weekly')meta.append(h('span',{class:'chip',text:'раз в неделю'}));
+  if(it.freq==='handover')meta.append(h('span',{class:'chip gold',text:'передача смены'}));
   if(it.freq==='monthly')meta.append(h('span',{class:'chip',text:'ревизия'}));
   if(it.opt&&!m)meta.append(h('span',{class:'chip',text:'по желанию'}));
   const cls='task'+(m?' is-done':'')+(ctx.late&&!m&&hard?' is-late':'')+(onclick?' act':'');
@@ -1084,16 +1129,22 @@ function viewNow(){
   const myC=b?crew[b]:null;const myIn=myC&&myC.in;
   const inIds=Object.keys(crew).filter(id=>crew[id]&&crew[id].in).sort((x,y)=>crew[x].in.at-crew[y].in.at);
   if(myIn){const l=lateBy(pid,date,b,crew);
-    hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),myC.out?` · смена закрыта ${tm(myIn.at)}–${tm(myC.out.at)}`:` · вы пришли в ${tm(myIn.at)}`+(l?` · опоздание ${fmtDur(l)}`:'')));}
+    const br=onBreak(myC);
+    hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),myC.out?` · смена закрыта ${tm(myIn.at)}–${tm(myC.out.at)}`:br?` · отход с ${tm(br.out.at)}, прошло ${fmtDur((now-br.out.at)/6e4)}`:` · вы пришли в ${tm(myIn.at)}`+(l?` · опоздание ${fmtDur(l)}`:'')));}
   else hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),inIds.length?' · пришли: '+inIds.map(id=>bName(id)+' '+tm(crew[id].in.at)).join(', '):' · приход ещё никто не отметил'));
   const acts=h('div',{class:'hero-acts'});
   if(b&&S.busy['ck'+pid])acts.append(h('button',{class:'btn gold grow',disabled:true},h('span',{class:'spin'}),h('span',{text:'Загружаю селфи…'})));
   else if(b&&!myIn)acts.append(h('button',{class:'btn gold grow',onclick:()=>checkIn(pid),html:I.cam},h('span',{text:'Я пришёл — селфи'})));
-  else if(b&&!myC.out)acts.append(h('button',{class:'btn night-ghost',onclick:()=>checkOutSheet(pid)},'Ушёл — селфи'));
+  else if(b&&!myC.out){const br=onBreak(myC);
+    if(S.busy['bk'+pid])acts.append(h('button',{class:'btn gold grow',disabled:true},h('span',{class:'spin'}),h('span',{text:'Загружаю фото…'})));
+    else if(br)acts.append(h('button',{class:'btn gold grow',onclick:()=>pickPhoto({cb:f=>doBreak(pid,'in',f)}),html:I.cam},h('span',{text:'Пришёл — фото'})));
+    else{if(!(myC.brk&&myC.brk.length)&&breakAllowed())acts.append(h('button',{class:'btn night-ghost',onclick:()=>breakSheet(pid)},'Отход — 1 час'));
+      acts.append(h('button',{class:'btn night-ghost',onclick:()=>checkOutSheet(pid)},'Ушёл — селфи'));}}
   if(b)acts.append(h('button',{class:'btn night-ghost',onclick:problemSheet,html:I.flag},h('span',{text:'Проблема'})));
   if(!b&&!mgr)acts.append(h('button',{class:'btn gold grow',onclick:pickSheet},'Выбрать себя'));
   if(acts.childNodes.length)hero.append(acts);
   if(mgr&&!b)hero.append(h('p',{class:'dim small',text:'Вы смотрите как управляющий. Отметки ставят бариста.'}));
+  {const br=myIn&&!myC.out&&onBreak(myC);if(br&&now-br.out.at>60*6e4)v.append(h('div',{class:'alarm',role:'alert'},h('strong',{text:'Час отдыха прошёл'}),h('div',{class:'al',text:`Отход был в ${tm(br.out.at)}. Нажмите «Пришёл» и сфотографируйте время.`})));}
   const myReqs=b?S.reqs.filter(q=>q.status!=='done'&&(q.point===pid||crewHas(q.point,b))).sort((x,y)=>x.at-y.at):[];
   for(const q of myReqs){const left=q.due-now;
     v.append(h('div',{class:'alarm',role:'alert'},h('strong',{text:`Руководитель просит фото: ${REQ[q.what]}`+(q.point!==pid?' · '+shortP(pName(q.point)):'')}),
@@ -1151,7 +1202,7 @@ function staffSheet(b,docs,key){
     const crew=d.crew||{},marks=d.marks||{},plan=d.plan||[];const c=crew[b];
     const mine=plan.filter(it=>marks[it.k]&&marks[it.k].b===b);if(!(c&&c.in)&&!mine.length)continue;shifts++;
     let l=0;if(c&&c.in){l=lateBy(d.point,d.date,b,crew);if(l){lateN++;lateMin+=l;}}
-    if(c&&c.in&&c.out)hours+=(c.out.at-c.in.at)/36e5;
+    hours+=payHours(d,c)||0;
     const past=d.date<S.today;const miss=plan.filter(i=>!i.opt&&!marks[i.k]&&(past||S.now>i.dl)).length;missed+=miss;
     let bk=0;for(const it of mine){const m=marks[it.k];if(m.late)lateMarks++;if(isBackfill(marks,it,m)){back++;bk++;}}
     rows.push({d,c,l,miss,bk});}
@@ -1211,6 +1262,7 @@ function attention(){
   const out=[];
   for(const p of S.cfg.points){const doc=S.days[p.id];const plan=planOf(p.id,S.today,doc);const marks=doc?.marks||{};const crew=doc?.crew||{};const sp=shortP(p.name);const t=pointTimes(p.id,S.today);
     if(S.now>t.open+(Number(S.cfg.lateMin??15))*6e4&&!Object.values(crew).some(c=>c&&c.in))out.push({at:t.open,chip:['danger','нет прихода'],t:'Приход никто не отметил',sub:`${sp} · открытие было в ${tm(t.open)}`});
+    for(const [b,c] of Object.entries(crew)){const br=onBreak(c);if(br&&S.now-br.out.at>70*6e4)out.push({at:br.out.at,chip:['warn','отход'],t:`${bName(b)} отдыхает ${fmtDur((S.now-br.out.at)/6e4)}`,sub:`${sp} · отход в ${tm(br.out.at)}, «Пришёл» ещё не отмечен`,img:br.out.photo,open:()=>viewer(blobUrl(br.out.photo),'Отход · '+bName(b),`${sp} · ${tm(br.out.at)}`)});}
     for(const [b,c] of Object.entries(crew)){if(c&&c.in){const l=lateBy(p.id,S.today,b,crew);if(l)out.push({at:c.in.at,chip:['danger','опоздание'],t:`${bName(b)} — ${fmtDur(l)}`,sub:`${sp} · приход ${tm(c.in.at)}, открытие ${tm(t.open)}`,img:c.in.photo,open:()=>viewer(blobUrl(c.in.photo),'Приход · '+bName(b),`${sp} · ${tm(c.in.at)}`)});}}
     for(const it of plan){const m=marks[it.k];const tt=it.t+(it.slot&&!it.spot?' · '+it.slot:'');
       if(!m){if(!it.opt&&S.now-it.dl>30*6e4)out.push({at:it.dl,chip:['danger','не сделано'],t:tt,sub:`${sp} · срок ${tm(it.dl)}, прошло ${ago(S.now-it.dl)}`});continue;}
@@ -1258,6 +1310,11 @@ function viewMon(){
   box.append(h('div',{class:'lbl',text:'Рейтинг и карточки сотрудников — нажмите на имя'}),rankList(docs,key));
   box.append(h('button',{class:'btn ghost block',onclick:()=>exportCsv(key,docs),html:I.down},h('span',{text:'Скачать '+monTitle(key).toLowerCase()+' в CSV'})));
   v.append(fold('month','Месяц, рейтинг и отчёт',' ',box));
+  if(isOwnerOrMgr()){const tb=h('div',{style:'display:grid;gap:12px;padding-top:4px'});
+    tb.append(h('div',{class:'mnav'},h('button',{class:'iconbtn','aria-label':'Предыдущий месяц',onclick:()=>{S.monKey=addMonth(key,-1);schedule();},html:I.l}),h('b',{text:monTitle(key)}),
+      h('button',{class:'iconbtn','aria-label':'Следующий месяц',disabled:key>=S.today.slice(0,7)||null,onclick:()=>{S.monKey=addMonth(key,1);schedule();},html:I.r})));
+    tb.append(tabelView(docs,key),h('button',{class:'btn gold block',onclick:()=>exportTabel(key,docs),html:I.down},h('span',{text:'Скачать табель для Excel'})));
+    v.append(fold('tabel','Табель часов — для зарплаты',' ',tb));}
   return v;
 }
 function arrivals(pid,doc,plan,marks){
@@ -1267,7 +1324,7 @@ function arrivals(pid,doc,plan,marks){
   return h('div',{class:'arr'},
     arr.length?arr.map(([b,c])=>{const l=lateBy(pid,S.today,b,crew);
       return h('span',{class:'arr-i'},c.in.photo?h('img',{class:'av',src:blobUrl(c.in.photo),alt:''}):h('span',{class:'av none',text:'—'}),h('span',{text:bName(b)+' · '+tm(c.in.at)}),
-        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):h('span',{class:'chip ok',text:'вовремя'}),c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
+        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
       :h('span',{class:'dim small',text:S.now<t.open?'Открытие в '+tm(t.open)+'. Приходов пока нет.':'Приход ещё никто не отметил'}),
     ph.length?h('div',{class:'oph'},ph.map(i=>h('figure',{},marks[i.k].video?h('span',{class:'vt',html:PLAY}):h('img',{src:blobUrl(marks[i.k].photo),alt:i.t,loading:'lazy'}),h('figcaption',{text:(i.kind==='video'?'Видео':shortTask(i))+' '+tm(marks[i.k].at)})))):null);
 }
@@ -1282,7 +1339,9 @@ function chronicle(pid){
   const doc=S.days[pid];const plan=planOf(pid,S.today,doc);const marks=doc?.marks||{};const crew=doc?.crew||{};const ev=[];
   for(const [b,c] of Object.entries(crew)){if(!c)continue;
     if(c.in){const l=lateBy(pid,S.today,b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
-    if(c.out)ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[c.in?['','смена '+fmtDur((c.out.at-c.in.at)/6e4)]:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}
+    for(const x of c.brk||[]){if(x.out)ev.push({at:x.out.at,photo:x.out.photo,title:'Отход · '+bName(b),chips:[x.in?null:['warn','отдыхает'],x.out.nv?['warn','без метки камеры']:null].filter(Boolean),cap:'Отход · '+bName(b)});
+      if(x.in)ev.push({at:x.in.at,photo:x.in.photo,title:'Пришёл после отхода · '+bName(b),chips:[[x.in.at-x.out.at>70*6e4?'warn':'ok','отдых '+fmtDur((x.in.at-x.out.at)/6e4)]],cap:'Пришёл · '+bName(b)});}
+    if(c.out){const hh=payHours({point:pid,date:S.today},c);ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[hh!=null?['','в табель '+fmtH(hh)+' ч']:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}}
   for(const it of plan){const m=marks[it.k];
     if(m)ev.push({at:m.at,photo:m.photo,video:m.video,it,m,title:it.t+(it.slot&&!it.spot?' · '+it.slot:''),sub:bName(m.b),chips:[m.late?['warn','с опозданием']:null,valText(it,m)?[m.bad?'danger':'ok',valText(it,m)]:null,...aiChips(m)].filter(Boolean)});
     else if(!it.opt&&S.now>it.dl)ev.push({at:it.dl,miss:true,title:it.t+(it.slot&&!it.spot?' · '+it.slot:''),chips:[['danger','не сделано к '+tm(it.dl)]]});}
@@ -1327,7 +1386,17 @@ async function daySheet(pid,date){
     if(!plan.length){kids.push(empty('В этот день трекер на точке не открывали.'));body.replaceChildren(...kids);return;}
     const crew=Object.keys(doc?.crew||{});
     kids.push(h('div',{class:'prog'},h('div',{class:'prog-row'},h('span',{class:'big',text:sc.pct+'%'}),h('span',{class:'muted',text:`${sc.done} из ${sc.req} · с опозданием ${sc.late}`})),bar(sc.pct)));
-    kids.push(h('p',{class:'hint',text:crew.length?'На смене: '+crew.map(bName).join(', '):'Смену никто не начинал'}));
+    {const cw=doc?.crew||{};const ids=crew.filter(x=>cw[x]&&cw[x].in).sort((a,b)=>cw[a].in.at-cw[b].in.at);
+      if(!ids.length)kids.push(h('p',{class:'hint',text:'Селфи прихода в этот день нет'}));
+      else{kids.push(h('div',{class:'lbl',text:'Приход, отход и уход — нажмите на фото'}));
+        kids.push(h('div',{class:'list'},ids.map(b=>{const c=cw[b];const hh=payHours({point:p,date},c);const l=lateBy(p,date,b,cw);
+          const ph=(x,cap,round)=>x&&x.photo?h('button',{class:'cimg'+(round?' round':''),'aria-label':cap+' · '+bName(b)+', '+tm(x.at),onclick:()=>viewId(x.photo,cap+' · '+bName(b),`${pName(p)} · ${fmtDay(date)}, ${tm(x.at)}${x.nv?' · без метки камеры':''}`)},lazyImg(x.photo)):null;
+          const shots=[ph(c.in,'Приход',true)];for(const x of c.brk||[]){shots.push(ph(x.out,'Отход'));shots.push(ph(x.in,'Пришёл после отхода'));}shots.push(ph(c.out,'Уход',true));
+          const br=(c.brk||[]).map(x=>x.in?`отход ${tm(x.out.at)}–${tm(x.in.at)}`:`отход с ${tm(x.out.at)}`);
+          return h('div',{class:'prow'},h('div',{},h('div',{class:'pt',text:bName(b)+' · '+ROLE[roleOf(b)]}),
+            h('div',{class:'pm t-meta'},h('span',{text:tm(c.in.at)+'–'+(c.out?tm(c.out.at):'…')}),l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):null,
+              br.map(t=>h('span',{class:'chip warn',text:t})),h('span',{class:'chip '+(hh==null?'':'gold'),text:hh==null?'нет селфи ухода':'в табель '+fmtH(hh)+' ч'}))),
+            h('div',{class:'pr shots'},shots.filter(Boolean)));})));}}
     for(const blk of ['open','during','close']){const items=plan.filter(i=>i.blk===blk);if(!items.length)continue;
       kids.push(h('div',{class:'lbl',text:BLK[blk]}));
       kids.push(listOf(items.map(i=>[i,!marks[i.k]&&!i.opt&&(past||S.now>i.dl)]),p,date,marks,{ro:true,past}));}
@@ -1335,11 +1404,48 @@ async function daySheet(pid,date){
   };
   const sheet=openSheet(fmtLong(date),[body]);await draw(pid);
 }
+function tabelData(docs,key){
+  const [y,m]=key.split('-').map(Number);const dim=new Date(y,m,0).getDate();const by={};const shifts=[];
+  for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1))for(const [b,c] of Object.entries(d.crew||{})){if(!c||!c.in)continue;
+    const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0});const day=+d.date.slice(8);const hh=payHours(d,c);const open=!c.out&&d.date===S.today;
+    const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false});r.n++;
+    if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;}
+    shifts.push({d,b,c,hh,open});}
+  const ord={barista:0,cashier:1,runner:2,manager:3,owner:4};
+  const rows=Object.values(by).sort((a,b)=>(ord[roleOf(a.b)]??9)-(ord[roleOf(b.b)]??9)||bName(a.b).localeCompare(bName(b.b),'ru'));
+  return{dim,rows,shifts};
+}
+function tabelView(docs,key){
+  const {dim,rows}=tabelData(docs,key);if(!rows.length)return empty('В этом месяце часов пока нет.');
+  const ds=Array.from({length:dim},(_,i)=>i+1);const wd=d=>parseYmd(`${key}-${pad(d)}`).getDay();
+  const t=h('table',{class:'tabel'},h('thead',{},h('tr',{},h('th',{class:'nm',scope:'col',text:'Сотрудник'}),h('th',{class:'tot',scope:'col',text:'Итого'}),
+      ds.map(d=>h('th',{scope:'col',class:wd(d)===0||wd(d)===6?'wk':null,text:String(d)})))),
+    h('tbody',{},rows.map(r=>h('tr',{},h('th',{class:'nm',scope:'row'},h('b',{text:bName(r.b)}),h('small',{text:ROLE[roleOf(r.b)]})),
+      h('td',{class:'tot',text:fmtH(r.total)}),
+      ds.map(d=>{const c=r.days[d];if(!c)return h('td',{class:wd(d)===0||wd(d)===6?'wk':null});
+        if(c.miss&&!c.h)return h('td',{class:'miss',title:'Нет селфи ухода',text:'?'});
+        if(c.open&&!c.h)return h('td',{class:'live',title:'Ещё на смене',text:'…'});
+        return h('td',{class:c.miss?'miss':null,text:fmtH(c.h)+(c.miss?'?':'')});})))));
+  const miss=rows.reduce((n,r)=>n+r.miss,0);
+  return h('div',{style:'display:grid;gap:8px'},h('div',{class:'tabel-wrap',tabindex:'0','aria-label':'Табель часов, прокрутите вбок'},t),
+    h('p',{class:'hint',text:`Часы — от селфи прихода до селфи ухода, но не раньше открытия и не позже ${S.cfg.payUntil||'23:00'}. Отход на сон не вычитается.`+(miss?` «?» — нет селфи ухода, такие смены не посчитаны (${miss}).`:'')}));
+}
+async function exportTabel(key,docs){
+  const {dim,rows,shifts}=tabelData(docs,key);const n=x=>x==null?'':(Math.round(x*100)/100).toString().replace('.',',');
+  const out=[['Табель часов · '+monTitle(key)],['Сотрудник','Роль',...Array.from({length:dim},(_,i)=>String(i+1)),'Итого часов','Смен','Без селфи ухода']];
+  for(const r of rows)out.push([bName(r.b),ROLE[roleOf(r.b)],...Array.from({length:dim},(_,i)=>{const c=r.days[i+1];return c?(c.h?n(c.h):'')+(c.miss?'?':''):'';}),n(r.total),r.n,r.miss]);
+  out.push([],['Смены подробно'],['Дата','Точка','Сотрудник','Роль','Приход','Уход','Отход','Часов в табель']);
+  for(const x of shifts)out.push([x.d.date,pName(x.d.point),bName(x.b),ROLE[roleOf(x.b)],tm(x.c.in.at),x.c.out?tm(x.c.out.at):(x.open?'на смене':'нет селфи'),
+    (x.c.brk||[]).map(k=>tm(k.out.at)+'–'+(k.in?tm(k.in.at):'?')).join(', '),n(x.hh)]);
+  const csv='\ufeff'+out.map(r=>r.map(c=>{const s=String(c);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(';')).join('\r\n');
+  if(!S.dl){toast('Скачивание недоступно в этом окне. Откройте трекер в браузере.');return;}
+  try{await S.dl.save({filename:`altyncup-tabel-${key}.csv`,data:csv});toast('Табель сохранён');}catch(e){if(e&&e.code==='declined')return;toast('Не получилось сохранить файл.');}
+}
 async function exportCsv(key,docs){
   const rows=[['Дата','Точка','Блок','Задача','Окно','Срок','Статус','Время отметки','Бариста','Значение','Фото']];
   for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1)){
     for(const [b,c] of Object.entries(d.crew||{})){if(!c||(!c.in&&!c.out))continue;const l=c.in?lateBy(d.point,d.date,b,d.crew):0;
-      rows.push([d.date,pName(d.point),'Смена','Приход и уход','',tm(pointTimes(d.point,d.date).open),c.in?(l?'опоздание '+fmtDur(l):'вовремя'):'нет селфи прихода',(c.in?tm(c.in.at):'')+(c.out?'–'+tm(c.out.at):''),bName(b),c.in&&c.out?'часов: '+fmtN((c.out.at-c.in.at)/36e5):'',c.in&&c.in.photo?'да':'']);}
+      rows.push([d.date,pName(d.point),'Смена','Приход и уход','',tm(pointTimes(d.point,d.date).open),c.in?(l?'опоздание '+fmtDur(l):'вовремя'):'нет селфи прихода',(c.in?tm(c.in.at):'')+(c.out?'–'+tm(c.out.at):''),bName(b),c.in&&c.out?'часов в табель: '+fmtH(payHours(d,c)):'',c.in&&c.in.photo?'да':'']);}
     for(const it of d.plan||[]){const m=d.marks&&d.marks[it.k];
       rows.push([d.date,pName(d.point),BLK[it.blk],it.t,it.slot||'',tm(it.dl),m?(m.late?'с опозданием':'вовремя'):(it.opt?'по желанию':'не сделано'),m?tm(m.at):'',m?bName(m.b):'',m?valText(it,m):'',m&&m.photo?'да':'']);}
   }
@@ -1377,7 +1483,7 @@ const SET_BUILD={
     const aside={open:'срок — открытие',during:'по времени задачи',close:'срок — закрытие + 30 мин'};
     for(const blk of ['open','during','close']){const items=D.tasks.filter(x=>x.block===blk&&(x.role||'barista')===S.taskRole);
       box.append(section(BLK[blk]+(blk==='during'?` · каждые ${fmtN(D.interval)} ч`:''),aside[blk],h('div',{class:'list'},items.length?items.map(t=>h('button',{class:'mrow'+(t.off?' off':''),onclick:()=>taskSheet(t)},
-        h('span',{class:'m-t'},h('b',{text:t.title}),h('span',{text:[KINDS[t.kind||'check'],t.photo?'нужно фото':null,t.freq==='weekly'?'раз в неделю':t.freq==='monthly'?'в день ревизии':null,t.items&&t.items.length?t.items.length+' пунктов':null,t.times&&t.times.length?'в '+t.times.join(', '):null,t.due?(t.block==='during'?'до ':'свой срок ')+t.due:null,t.opt?'по желанию':null,t.off?'выключена':null].filter(Boolean).join(' · ')})),
+        h('span',{class:'m-t'},h('b',{text:t.title}),h('span',{text:[KINDS[t.kind||'check'],t.photo?'нужно фото':null,t.freq==='weekly'?'раз в неделю':t.freq==='monthly'?'в день ревизии':t.freq==='handover'?'при передаче смены':null,t.points&&t.points.length?'только '+t.points.map(id=>shortP(pName(id))).join(', '):null,t.items&&t.items.length?t.items.length+' пунктов':null,t.times&&t.times.length?'в '+t.times.join(', '):null,t.due?(t.block==='during'?'до ':'свой срок ')+t.due:null,t.opt?'по желанию':null,t.off?'выключена':null].filter(Boolean).join(' · ')})),
         h('span',{class:'chev',html:I.r}))):empty('Задач нет'))));}
     box.append(h('button',{class:'btn ghost block mt',style:'margin-top:16px',onclick:()=>taskSheet(null)},'Добавить задачу'));
     return box;},
@@ -1385,7 +1491,8 @@ const SET_BUILD={
     h('div',{class:'row2'},inputF('n-tmin','Холодильник от, °C',D.tempMin,x=>D.tempMin=x,{inputmode:'decimal'}),inputF('n-tmax','до, °C',D.tempMax,x=>D.tempMax=x,{inputmode:'decimal'})),
     h('div',{class:'row2'},inputF('n-pmin','Пролив от, сек',D.pullMin,x=>D.pullMin=x,{inputmode:'decimal'}),inputF('n-pmax','до, сек',D.pullMax,x=>D.pullMax=x,{inputmode:'decimal'})),
     h('div',{class:'row2'},sel('n-int','Обход зала, каждые',[[1,'1 час'],[1.5,'1,5 часа'],[2,'2 часа'],[3,'3 часа'],[4,'4 часа']],D.interval,x=>D.interval=Number(x)),
-      sel('n-wd','Глубокая чистка',WD,D.weeklyDay,x=>D.weeklyDay=Number(x))),
+      sel('n-wd','Задачи «раз в неделю»',WD,D.weeklyDay,x=>D.weeklyDay=Number(x))),
+    inputF('n-pay','Часы в табель считаются до',D.payUntil||'23:00',x=>D.payUntil=x,{type:'time'}),
     inputF('n-rev','Ревизия, число месяца',D.revisionDay,x=>D.revisionDay=x,{inputmode:'numeric'}),
     chk('n-spot','Фото-проверка раз в смену в случайное время',!!D.spotCheck,x=>D.spotCheck=x),
     inputF('n-late','Опоздание — если первый пришёл позже открытия на, мин',D.lateMin??15,x=>D.lateMin=x,{inputmode:'numeric'}),
@@ -1464,10 +1571,16 @@ function taskSheet(t){
         h('p',{class:'hint',text:'Окно для каждого времени: за 15 минут до и 30 минут после.'})));
       if(!x.times.length)k.push(h('div',{class:'field'},h('label',{for:'ts-due',text:'Или: сделать до'}),h('input',{id:'ts-due',type:'time',value:x.due||'',oninput:e=>{x.due=e.target.value||null;}})));}
     else k.push(h('div',{class:'field'},h('label',{for:'ts-due',text:'Свой срок — если не подходит общий'}),h('input',{id:'ts-due',type:'time',value:x.due||'',oninput:e=>{x.due=e.target.value||null;}})));
+    if(x.block!=='during')k.push(sel('ts-freq','Как часто',[['daily','Каждый день'],['handover','При передаче смены — 2-й день 2/2'],['weekly','Раз в неделю'],['monthly','В день ревизии']],x.freq||'daily',v=>{x.freq=v;draw();}));
+    if(x.freq==='handover')k.push(h('p',{class:'hint',text:'Появится у бариста, который вышел второй день подряд, — в блоке закрытия, перед передачей смены.'}));
+    if(S.draft.points.length>1){x.points=x.points||[];const all=!x.points.length;
+      k.push(h('div',{class:'field'},h('span',{class:'lbl',text:'На каких точках'}),h('div',{class:'t-meta'},S.draft.points.map(pt=>chk('ts-pt-'+pt.id,shortP(pt.name),all||x.points.includes(pt.id),v=>{
+        let cur=x.points.length?x.points.slice():S.draft.points.map(q=>q.id);cur=v?[...new Set([...cur,pt.id])]:cur.filter(q=>q!==pt.id);
+        if(!cur.length){toast('Нужна хотя бы одна точка');draw();return;}x.points=cur.length===S.draft.points.length?[]:cur;draw();})))));}
     k.push(chk('ts-on','Задача активна',!x.off,v=>x.off=!v));
     more.replaceChildren(...k);};
   if(isNew)kids.push(h('div',{class:'row2'},sel('ts-blk','Блок',[['open','Открытие'],['during','В течение смены'],['close','Закрытие']],x.block,v=>{x.block=v;draw();}),sel('ts-kind','Тип',Object.entries(KINDS),x.kind,v=>{x.kind=v;if(!['check','pull'].includes(v))x.photo=false;draw();})),
-    sel('ts-freq','Как часто (для открытия и закрытия)',[['daily','Каждый день'],['weekly','Раз в неделю, в день глубокой чистки'],['monthly','В день ревизии']],x.freq||'daily',v=>x.freq=v));
+    null);
   else kids.push(h('p',{class:'hint',text:`${BLK[x.block]} · ${KINDS[x.kind||'check']}`}));
   kids.push(more);draw();
   const err=h('p',{class:'err',role:'alert'});kids.push(err);
@@ -1476,7 +1589,7 @@ function taskSheet(t){
     x.items=(x.items||[]).map(s=>String(s).trim()).filter(Boolean);if(!x.items.length||x.kind!=='check')delete x.items;
     if(!x.hint||!(x.photo||x.kind==='video'))delete x.hint;
     if(x.block==='during'){delete x.freq;if(!x.times||!x.times.length)delete x.times;else x.due=null;}else{delete x.times;if(!x.freq||x.freq==='daily')delete x.freq;}
-    if(!x.due)delete x.due;if(!x.off)delete x.off;
+    if(!x.due)delete x.due;if(!x.off)delete x.off;if(!x.points||!x.points.length)delete x.points;if(x.freq==='handover')x.block='close';
     const D=S.draft;if(isNew)D.tasks.push(x);else{const i=D.tasks.findIndex(y=>y.id===t.id);D.tasks[i]=x;}
     closeSheet();rebuildSet();toast('Изменено. Нажмите «Сохранить настройки».');};
   kids.push(h('div',{class:'btnrow'},!isNew?h('button',{class:'btn danger',onclick:()=>{S.draft.tasks=S.draft.tasks.filter(y=>y.id!==t.id);closeSheet();rebuildSet();toast('Задача убрана. Нажмите «Сохранить настройки».');}},'Удалить'):null,
@@ -1490,11 +1603,12 @@ async function saveSet(){
   if([D.tempMin,D.tempMax,D.pullMin,D.pullMax].some(x=>!isFinite(x)))return toast('Нормы должны быть числами.');
   D.lateMin=Math.max(0,parseInt(D.lateMin,10)||0);
   D.revisionDay=Math.min(31,Math.max(1,parseInt(D.revisionDay,10)||30));
-  D.award.minShifts=Math.max(0,parseInt(D.award.minShifts,10)||0);
-  D.baristas=D.baristas.filter(b=>b.name.trim());D.tasks=D.tasks.filter(t=>t.title.trim());
+  D.award=D.award||{};D.award.minShifts=Math.max(0,parseInt(D.award.minShifts,10)||0);
+  if(!/^\d{2}:\d{2}$/.test(D.payUntil||''))D.payUntil='23:00';
+  D.tasks=D.tasks.filter(t=>t.title.trim());
   try{
     await enqueue('cfg/main',()=>S.db.doc('cfg/main').set(D));
-    for(const p of D.points){if(S.days[p.id]){const path=docPath(p.id,S.today);await enqueue(path,()=>S.db.doc(path).update({plan:buildPlan(D,p.id,S.today)}));}}
+    for(const p of D.points){if(S.days[p.id]){const path=docPath(p.id,S.today);await enqueue(path,()=>S.db.doc(path).update({plan:[...buildPlan(D,p.id,S.today),...(S.days[p.id].plan||[]).filter(i=>i.freq==='handover')]}));}}
     S.draft=clone(D);toast('Сохранено. Сегодняшний чек-лист обновлён.');
   }catch(e){failToast(e);}
 }
@@ -1506,14 +1620,14 @@ const ROLE={owner:'Владелец',manager:'Управляющий',barista:'�
 const ROLE_PL={owner:'Владельцы',manager:'Управляющие',barista:'Бариста',cashier:'Кассиры',runner:'Раннеры'};
 const WORK_ROLES=['barista','cashier','runner'];
 const nowMs=()=>Date.now()+(S.skew||0);
-const SRV_ERR=['not_allowed','not_staff','already_in','not_in','no_day','no_task','no_mark','pw_taken','self_lock','not_found'];
+const SRV_ERR=['not_allowed','not_staff','already_in','already_out','not_sleeping','still_sleeping','break_used','no_break_right','not_in','no_day','no_task','no_mark','pw_taken','self_lock','not_found'];
 function dbErr(e){const m=String((e&&(e.message||e.details))||'');const k=SRV_ERR.find(x=>m.includes(x));
   return{code:k==='not_allowed'||k==='not_staff'||(e&&e.code==='42501')?'not_granted':k||'unavailable',message:m};}
 const live={},chans={},bumpT={};
 function onTable(t,fn){(live[t]=live[t]||new Set()).add(fn);if(!chans[t]&&sb)chans[t]=sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>bump(t)).subscribe();return()=>live[t].delete(fn);}
 function bump(t){clearTimeout(bumpT[t]);bumpT[t]=setTimeout(()=>{(live[t]||[]).forEach(f=>f());},200);}
 function refreshAll(){Object.keys(live).forEach(bump);}
-const RPC_TBL={mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_set_pw:'staff'};
+const RPC_TBL={crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_set_pw:'staff'};
 async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw dbErr(error);
   const t=RPC_TBL[fn]||(args&&args.tbl);if(t)bump(t);return data;}
 const mkSnap=row=>({id:row?row.id:null,exists:!!row,data:()=>row?row.data:undefined,metadata:{}});
@@ -1533,6 +1647,8 @@ const DB={
 };
 const GIF='data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 const URLS={},PEND=new Set();let urlT=null;
+function lazyImg(id,alt){const i=h('img',{src:blobUrl(id),alt:alt||'',loading:'lazy'});if(id&&i.getAttribute('src')===GIF)urlOf(id).then(u=>{if(u)i.src=u;}).catch(()=>{});return i;}
+function viewId(id,title,sub){urlOf(id).then(u=>viewer(u||GIF,title,sub)).catch(()=>viewer(GIF,title,sub));}
 function blobUrl(id){if(!id)return GIF;const c=URLS[id];if(c&&c.exp>Date.now())return c.url||GIF;
   PEND.add(id);clearTimeout(urlT);urlT=setTimeout(loadUrls,30);return GIF;}
 async function loadUrls(){const ids=[...PEND];PEND.clear();if(!ids.length||!sb)return;
@@ -1562,6 +1678,7 @@ function genPw(name){const base=String(name).trim().split(/\s+/)[0];const used=n
 async function loadStaff(){const {data}=await sb.from('staff').select('login,name,role,active').order('name');const o={};for(const r of data||[])o[r.login]=r;S.staff=o;
   if(S.me&&o[S.me.login])S.me=o[S.me.login];schedule();}
 async function loadPw(){if(!S.isOwner)return;const {data}=await sb.from('staff_pw').select('login,pw');const o={};for(const r of data||[])o[r.login]=r.pw;S.pw=o;schedule();}
+const isOwnerOrMgr=()=>isMgr();
 const roleOf=b=>(S.staff[b]&&S.staff[b].role)||'barista';
 const myRole=()=>{const r=S.me&&S.me.role;return WORK_ROLES.includes(r)?r:'barista';};
 
