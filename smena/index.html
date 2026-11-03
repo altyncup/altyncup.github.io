@@ -1415,7 +1415,7 @@ function tabelData(docs,key){
     const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false});r.n++;
     if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;}
     shifts.push({d,b,c,hh,open});}
-  const ord={barista:0,cashier:1,runner:2,manager:3,owner:4};
+  const ord={chef:0,barista:1,cashier:2,runner:3,manager:4,owner:5};
   const rows=Object.values(by).sort((a,b)=>(ord[roleOf(a.b)]??9)-(ord[roleOf(b.b)]??9)||bName(a.b).localeCompare(bName(b.b),'ru'));
   return{dim,rows,shifts};
 }
@@ -1530,7 +1530,7 @@ function viewSet(){
   const D=S.draft;const dirty=JSON.stringify(D)!==JSON.stringify(S.cfg);
   const v=h('div',{});
   if(!S.setSec){
-    v.append(topBar('Настройки','Видят только владелец и админы'));
+    v.append(topBar('Настройки','Видят только владельцы'));
     v.append(h('div',{class:'list mt'},SET_SECS.map(([k,t,d])=>h('button',{class:'mrow',onclick:()=>{S.setSec=k;rebuildSet();window.scrollTo(0,0);}},
       h('span',{class:'m-t'},h('b',{text:t}),h('span',{text:d(D)})),h('span',{class:'chev',html:I.r})))));
     if(dirty)v.append(saveBar(true));
@@ -1620,9 +1620,9 @@ async function saveSet(){
 /* ---------- Supabase ---------- */
 const SB_URL='https://ordmutqhpeqkbzychhir.supabase.co',SB_KEY='sb_publishable_qyd00EeVC0LGI85tPiJaqQ_OQr6G8vw',DOMAIN='@altyncup.app';
 let sb=null;
-const ROLE={owner:'Владелец',manager:'Админ',barista:'Бариста',cashier:'Кассир',runner:'Раннер'};
-const ROLE_PL={owner:'Владельцы',manager:'Админы',barista:'Бариста',cashier:'Кассиры',runner:'Раннеры'};
-const WORK_ROLES=['barista','cashier','runner'];
+const ROLE={owner:'Владелец',manager:'Админ',barista:'Бариста',chef:'Шеф-бариста',cashier:'Кассир',runner:'Раннер'};
+const ROLE_PL={owner:'Владельцы',manager:'Админы',barista:'Бариста',chef:'Шеф-бариста',cashier:'Кассиры',runner:'Раннеры'};
+const WORK_ROLES=['barista','chef','cashier','runner'];
 const nowMs=()=>Date.now()+(S.skew||0);
 const SRV_ERR=['not_allowed','not_staff','already_in','already_out','not_sleeping','still_sleeping','break_used','no_break_right','not_in','no_day','no_task','no_mark','pw_taken','self_lock','not_found'];
 function dbErr(e){const m=String((e&&(e.message||e.details))||'');const k=SRV_ERR.find(x=>m.includes(x));
@@ -1736,11 +1736,11 @@ function staffSection(){
         toast(`Добавлен: ${name}. Пароль ${pw}`);nm.value='';err.textContent='';}
       catch(e){err.textContent=e.code==='pw_taken'?'Совпал пароль, нажмите ещё раз.':'Не получилось: '+(e.message||e.code);}finally{add.disabled=false;}});
     box.append(h('div',{class:'card'},h('div',{class:'lbl',text:'Новый сотрудник'}),h('div',{class:'field'},h('label',{for:'st-name',text:'Имя'}),nm),
-      sel('st-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],role,v=>role=v),
+      sel('st-role','Должность',[['barista','Бариста'],['chef','Шеф-бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],role,v=>role=v),
       sel('st-point','Точка',[['','Любая точка'],...S.cfg.points.map(p=>[p.id,'Только '+shortP(p.name)])],npoint,v=>npoint=v),
       h('p',{class:'hint',text:'Пароль создастся сам: имя и 4 случайные цифры, у всех разные.'}),err,add));}
   const all=Object.values(S.staff).sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name,'ru'));
-  const order=['owner','manager','barista','cashier','runner'];
+  const order=['owner','manager','chef','barista','cashier','runner'];
   for(const r of order){const g=all.filter(x=>x.role===r);if(!g.length)continue;
     box.append(section(ROLE_PL[r],String(g.filter(x=>x.active).length),h('div',{class:'list'},g.map(x=>h('div',{class:'prow'},
       h('div',{},h('div',{class:'pt'},x.name,x.active?null:h('span',{class:'chip',text:' не работает'})),
@@ -1760,7 +1760,7 @@ function staffEdit(x){
     catch(e){err.textContent=e.code==='self_lock'?'Нельзя убрать права владельца у самого себя.':'Не получилось: '+(e.message||e.code);}};
   const newPw=async()=>{const pw=genPw(d.name||x.name);try{await rpc('staff_set_pw',{p_login:x.login,p_pw:pw});await loadPw();closeSheet();toast(`Новый пароль ${x.name}: ${pw}`);}catch(e){err.textContent='Не получилось: '+(e.message||e.code);}};
   openSheet(x.name,[h('div',{class:'field'},h('label',{for:'se-name',text:'Имя'}),h('input',{id:'se-name',type:'text',value:x.name})),
-    sel('se-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],d.role,v=>d.role=v),
+    sel('se-role','Должность',[['barista','Бариста'],['chef','Шеф-бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],d.role,v=>d.role=v),
     h('div',{class:'field'},h('label',{for:'se-title',text:'Подпись (необязательно)'}),h('input',{id:'se-title',type:'text',value:d.title,placeholder:'Например: Админ Кулманова, Шеф-бариста'})),
     sel('se-point','Точка',[['','Любая точка'],...S.cfg.points.map(p=>[p.id,'Только '+shortP(p.name)])],d.point,v=>d.point=v),
     chk('se-act','Работает',d.active,v=>d.active=v),
@@ -1813,7 +1813,7 @@ function renderTabs(){
   const nav=document.getElementById('tabs');const mgr=!!(S.ready&&!S.fatal&&S.cfg&&isMgr());
   nav.hidden=!mgr;document.body.classList.toggle('no-tabs',!mgr);if(!mgr)return;
   const alarms=S.problems.length;
-  const items=[['now','Сейчас',I.list],['mon','Мониторинг',I.chart],['set','Настройки',I.sliders]];
+  const items=[['now','Сейчас',I.list],['mon','Мониторинг',I.chart],...(S.isOwner?[['set','Настройки',I.sliders]]:[])];
   nav.replaceChildren(h('div',{class:'in'},items.map(([k,l,ic])=>h('button',{'aria-current':S.tab===k?'page':null,'aria-label':l+(k==='mon'&&alarms?`, открытых проблем: ${alarms}`:''),onclick:()=>goTab(k)},
     h('span',{class:'ti',html:ic}),h('span',{text:l}),k==='mon'&&alarms?h('span',{class:'dot','aria-hidden':'true',text:String(alarms)}):null))));
 }
@@ -1829,6 +1829,7 @@ function buildView(){
     return v;
   }
   if(!isMgr()&&S.tab!=='now')S.tab='now';
+  if(!S.isOwner&&S.tab==='set')S.tab='mon';
   if(S.tab==='mon')return viewMon();
   if(S.tab==='set'){if(!S.draft)S.draft=clone(S.cfg);S.setBuilt=true;return viewSet();}
   return viewNow();
