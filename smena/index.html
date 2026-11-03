@@ -1125,7 +1125,7 @@ function viewNow(){
   if(!pid){
     hero.append(h('p',{class:'me-line',text:'Начните смену: селфи у бара той точки, где вы сегодня. Кофемашина должна быть в кадре.'}));
     hero.append(busyCk?h('div',{class:'hero-acts'},h('button',{class:'btn gold grow',disabled:true},h('span',{class:'spin'}),h('span',{text:'Загружаю селфи…'})))
-      :h('div',{class:'hero-acts'},cfg.points.map(p=>h('button',{class:'btn gold grow',onclick:()=>checkIn(p.id),html:I.cam},h('span',{text:shortP(p.name)+' — я пришёл'})))));
+      :h('div',{class:'hero-acts'},cfg.points.filter(p=>!S.staff[b]?.point||S.staff[b].point===p.id).map(p=>h('button',{class:'btn gold grow',onclick:()=>checkIn(p.id),html:I.cam},h('span',{text:shortP(p.name)+' — я пришёл'})))));
     v.append(ratingCard());return v;
   }
   const doc=S.days[pid];const plan=planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===myRole());const marks=doc?.marks||{};const crew=doc?.crew||{};
@@ -1147,7 +1147,7 @@ function viewNow(){
   if(b)acts.append(h('button',{class:'btn night-ghost',onclick:problemSheet,html:I.flag},h('span',{text:'Проблема'})));
   if(!b&&!mgr)acts.append(h('button',{class:'btn gold grow',onclick:pickSheet},'Выбрать себя'));
   if(acts.childNodes.length)hero.append(acts);
-  if(mgr&&!b)hero.append(h('p',{class:'dim small',text:'Вы смотрите как управляющий. Отметки ставят бариста.'}));
+  if(mgr&&!b)hero.append(h('p',{class:'dim small',text:'Вы смотрите как админ. Отметки ставят сотрудники.'}));
   {const br=myIn&&!myC.out&&onBreak(myC);if(br&&now-br.out.at>60*6e4)v.append(h('div',{class:'alarm',role:'alert'},h('strong',{text:'Час отдыха прошёл'}),h('div',{class:'al',text:`Отход был в ${tm(br.out.at)}. Нажмите «Пришёл» и сфотографируйте время.`})));}
   const myReqs=b?S.reqs.filter(q=>q.status!=='done'&&(q.point===pid||crewHas(q.point,b))).sort((x,y)=>x.at-y.at):[];
   for(const q of myReqs){const left=q.due-now;
@@ -1276,7 +1276,7 @@ function attention(){
       if(m.bad&&it.kind==='pull')out.push({at:m.at,chip:['warn','пролив'],t:`Пролив ${fmtN(m.val)} сек — вне нормы ${fmtN(S.cfg.pullMin)}–${fmtN(S.cfg.pullMax)}`,sub:`${sp} · ${bName(m.b)} · ${tm(m.at)}`,img:m.photo,open:openM});}
   }
   for(const q of S.reqs)if(q.status!=='done'&&S.now>q.due)out.push({at:q.due,chip:['danger','нет ответа'],t:'Запрос фото: '+REQ[q.what],sub:`${shortP(pName(q.point))} · отправлен в ${tm(q.at)}`});
-  for(const pr of S.problems)out.push({at:pr.at,chip:[pr.kind==='temp'?'danger':'warn',PROB[pr.kind]||'Проблема'],t:pr.text||'Без комментария',sub:`${shortP(pName(pr.point))} · ${pr.b?bName(pr.b):'управляющий'} · ${pr.date===S.today?'сегодня':fmtDay(pr.date)}, ${tm(pr.at)}`,img:pr.photo,open:pr.photo?()=>viewer(blobUrl(pr.photo),PROB[pr.kind]||'Проблема',pr.text||''):null,act:{label:'Закрыть',fn:()=>closeProblem(pr)}});
+  for(const pr of S.problems)out.push({at:pr.at,chip:[pr.kind==='temp'?'danger':'warn',PROB[pr.kind]||'Проблема'],t:pr.text||'Без комментария',sub:`${shortP(pName(pr.point))} · ${pr.b?bName(pr.b):'админ'} · ${pr.date===S.today?'сегодня':fmtDay(pr.date)}, ${tm(pr.at)}`,img:pr.photo,open:pr.photo?()=>viewer(blobUrl(pr.photo),PROB[pr.kind]||'Проблема',pr.text||''):null,act:{label:'Закрыть',fn:()=>closeProblem(pr)}});
   return out.sort((a,b)=>b.at-a.at);
 }
 function viewMon(){
@@ -1530,7 +1530,7 @@ function viewSet(){
   const D=S.draft;const dirty=JSON.stringify(D)!==JSON.stringify(S.cfg);
   const v=h('div',{});
   if(!S.setSec){
-    v.append(topBar('Настройки','Видят только владелец и управляющие'));
+    v.append(topBar('Настройки','Видят только владелец и админы'));
     v.append(h('div',{class:'list mt'},SET_SECS.map(([k,t,d])=>h('button',{class:'mrow',onclick:()=>{S.setSec=k;rebuildSet();window.scrollTo(0,0);}},
       h('span',{class:'m-t'},h('b',{text:t}),h('span',{text:d(D)})),h('span',{class:'chev',html:I.r})))));
     if(dirty)v.append(saveBar(true));
@@ -1620,8 +1620,8 @@ async function saveSet(){
 /* ---------- Supabase ---------- */
 const SB_URL='https://ordmutqhpeqkbzychhir.supabase.co',SB_KEY='sb_publishable_qyd00EeVC0LGI85tPiJaqQ_OQr6G8vw',DOMAIN='@altyncup.app';
 let sb=null;
-const ROLE={owner:'Владелец',manager:'Управляющий',barista:'Бариста',cashier:'Кассир',runner:'Раннер'};
-const ROLE_PL={owner:'Владельцы',manager:'Управляющие',barista:'Бариста',cashier:'Кассиры',runner:'Раннеры'};
+const ROLE={owner:'Владелец',manager:'Админ',barista:'Бариста',cashier:'Кассир',runner:'Раннер'};
+const ROLE_PL={owner:'Владельцы',manager:'Админы',barista:'Бариста',cashier:'Кассиры',runner:'Раннеры'};
 const WORK_ROLES=['barista','cashier','runner'];
 const nowMs=()=>Date.now()+(S.skew||0);
 const SRV_ERR=['not_allowed','not_staff','already_in','already_out','not_sleeping','still_sleeping','break_used','no_break_right','not_in','no_day','no_task','no_mark','pw_taken','self_lock','not_found'];
@@ -1631,7 +1631,7 @@ const live={},chans={},bumpT={};
 function onTable(t,fn){(live[t]=live[t]||new Set()).add(fn);if(!chans[t]&&sb)chans[t]=sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>bump(t)).subscribe();return()=>live[t].delete(fn);}
 function bump(t){clearTimeout(bumpT[t]);bumpT[t]=setTimeout(()=>{(live[t]||[]).forEach(f=>f());},200);}
 function refreshAll(){Object.keys(live).forEach(bump);}
-const RPC_TBL={crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_set_pw:'staff'};
+const RPC_TBL={crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_update2:'staff',staff_set_pw:'staff'};
 async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw dbErr(error);
   const t=RPC_TBL[fn]||(args&&args.tbl);if(t)bump(t);return data;}
 const mkSnap=row=>({id:row?row.id:null,exists:!!row,data:()=>row?row.data:undefined,metadata:{}});
@@ -1679,7 +1679,7 @@ function slugOf(name){let s=String(name).toLowerCase().split('').map(c=>TR[c]??c
   if(s.length<2)s+='_1';let x=s,i=2;while(S.staff[x])x=s+'_'+(i++);return x;}
 function genPw(name){const base=String(name).trim().split(/\s+/)[0];const used=new Set(Object.values(S.pw||{}).map(p=>String(p).slice(-4)));
   let d;do{d=String(1000+Math.floor(Math.random()*9000));}while(used.has(d));return base+d;}
-async function loadStaff(){const {data}=await sb.from('staff').select('login,name,role,active').order('name');const o={};for(const r of data||[])o[r.login]=r;S.staff=o;
+async function loadStaff(){const {data}=await sb.from('staff').select('login,name,role,active,point,title').order('name');const o={};for(const r of data||[])o[r.login]=r;S.staff=o;
   if(S.me&&o[S.me.login])S.me=o[S.me.login];schedule();}
 async function loadPw(){if(!S.isOwner)return;const {data}=await sb.from('staff_pw').select('login,pw');const o={};for(const r of data||[])o[r.login]=r.pw;S.pw=o;schedule();}
 const isOwnerOrMgr=()=>isMgr();
@@ -1729,20 +1729,22 @@ function staffSection(){
   const own=S.isOwner;const box=h('div',{style:'display:grid;gap:12px;margin-top:16px'});
   if(own){const nm=h('input',{id:'st-name',type:'text',placeholder:'Имя, например Бекзат'});let role='barista';
     const err=h('p',{class:'err',role:'alert'});
-    const add=h('button',{class:'btn gold block'},'Добавить сотрудника');
+    let npoint='';const add=h('button',{class:'btn gold block'},'Добавить сотрудника');
     add.addEventListener('click',async()=>{const name=nm.value.trim();if(!name){err.textContent='Введите имя';return;}
       add.disabled=true;const login=slugOf(name);const pw=genPw(name);
-      try{await rpc('staff_create',{p_login:login,p_name:name,p_role:role,p_pw:pw});await loadStaff();await loadPw();
+      try{await rpc('staff_create',{p_login:login,p_name:name,p_role:role,p_pw:pw});if(npoint)await rpc('staff_update2',{p_login:login,p_name:name,p_role:role,p_active:true,p_point:npoint,p_title:''});await loadStaff();await loadPw();rebuildSet();
         toast(`Добавлен: ${name}. Пароль ${pw}`);nm.value='';err.textContent='';}
       catch(e){err.textContent=e.code==='pw_taken'?'Совпал пароль, нажмите ещё раз.':'Не получилось: '+(e.message||e.code);}finally{add.disabled=false;}});
     box.append(h('div',{class:'card'},h('div',{class:'lbl',text:'Новый сотрудник'}),h('div',{class:'field'},h('label',{for:'st-name',text:'Имя'}),nm),
-      sel('st-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Управляющий'],['owner','Владелец']],role,v=>role=v),
+      sel('st-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],role,v=>role=v),
+      sel('st-point','Точка',[['','Любая точка'],...S.cfg.points.map(p=>[p.id,'Только '+shortP(p.name)])],npoint,v=>npoint=v),
       h('p',{class:'hint',text:'Пароль создастся сам: имя и 4 случайные цифры, у всех разные.'}),err,add));}
   const all=Object.values(S.staff).sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name,'ru'));
   const order=['owner','manager','barista','cashier','runner'];
   for(const r of order){const g=all.filter(x=>x.role===r);if(!g.length)continue;
     box.append(section(ROLE_PL[r],String(g.filter(x=>x.active).length),h('div',{class:'list'},g.map(x=>h('div',{class:'prow'},
       h('div',{},h('div',{class:'pt'},x.name,x.active?null:h('span',{class:'chip',text:' не работает'})),
+        (x.title||x.point)?h('div',{class:'pm',text:[x.title,x.point?'точка: '+shortP(pName(x.point)):null].filter(Boolean).join(' · ')}):null,
         own?h('div',{class:'pm'},'Пароль: ',h('b',{class:'pwtxt',text:S.pw?.[x.login]||'—'})):h('div',{class:'pm',text:ROLE[x.role]})),
       own?h('div',{class:'pr'},h('button',{class:'btn ghost sm',onclick:()=>staffEdit(x)},'Изменить')):null)))));}
   if(own){const copy=h('button',{class:'btn ghost block',html:I.list},h('span',{text:'Скопировать все пароли'}));
@@ -1752,13 +1754,15 @@ function staffSection(){
   return box;
 }
 function staffEdit(x){
-  const d={name:x.name,role:x.role,active:x.active};const err=h('p',{class:'err',role:'alert'});
+  const d={name:x.name,role:x.role,active:x.active,point:x.point||'',title:x.title||''};const err=h('p',{class:'err',role:'alert'});
   const save=async()=>{d.name=document.getElementById('se-name').value.trim();if(!d.name){err.textContent='Введите имя';return;}
-    try{await rpc('staff_update',{p_login:x.login,p_name:d.name,p_role:d.role,p_active:d.active});await loadStaff();closeSheet();toast('Сохранено');}
+    try{d.title=document.getElementById('se-title').value.trim();await rpc('staff_update2',{p_login:x.login,p_name:d.name,p_role:d.role,p_active:d.active,p_point:d.point,p_title:d.title});await loadStaff();closeSheet();rebuildSet();toast('Сохранено');}
     catch(e){err.textContent=e.code==='self_lock'?'Нельзя убрать права владельца у самого себя.':'Не получилось: '+(e.message||e.code);}};
   const newPw=async()=>{const pw=genPw(d.name||x.name);try{await rpc('staff_set_pw',{p_login:x.login,p_pw:pw});await loadPw();closeSheet();toast(`Новый пароль ${x.name}: ${pw}`);}catch(e){err.textContent='Не получилось: '+(e.message||e.code);}};
   openSheet(x.name,[h('div',{class:'field'},h('label',{for:'se-name',text:'Имя'}),h('input',{id:'se-name',type:'text',value:x.name})),
-    sel('se-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Управляющий'],['owner','Владелец']],d.role,v=>d.role=v),
+    sel('se-role','Должность',[['barista','Бариста'],['cashier','Кассир'],['runner','Раннер'],['manager','Админ'],['owner','Владелец']],d.role,v=>d.role=v),
+    h('div',{class:'field'},h('label',{for:'se-title',text:'Подпись (необязательно)'}),h('input',{id:'se-title',type:'text',value:d.title,placeholder:'Например: Админ Кулманова, Шеф-бариста'})),
+    sel('se-point','Точка',[['','Любая точка'],...S.cfg.points.map(p=>[p.id,'Только '+shortP(p.name)])],d.point,v=>d.point=v),
     chk('se-act','Работает',d.active,v=>d.active=v),
     h('p',{class:'hint',text:'Пароль сейчас: '+(S.pw?.[x.login]||'—')+'. Новый пароль сразу отключит старый.'}),err,
     h('div',{class:'btnrow'},h('button',{class:'btn ghost',onclick:newPw},'Новый пароль'),h('button',{class:'btn gold',onclick:save},'Сохранить'))]);
@@ -1854,7 +1858,7 @@ function subCur(){
 }
 function onCfg(){
   if(!S.cfg)return;const pts=S.cfg.points.map(p=>p.id);
-  if(!S.point||!pts.includes(S.point)){const saved=LS.get('point');S.point=pts.includes(saved)?saved:pts[0];}
+  if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
 function tick(){S.now=nowMs();const d=businessDate(S.now);if(d!==S.today){S.today=d;if(S.cfg){subDays();subCur();}}if(S.tab!=='set')schedule();}
@@ -1865,7 +1869,7 @@ async function boot(){
   S.db=DB;S.assets=ASSETS;S.dl=DL;S.sample=null;
   const {data:{session}}=await sb.auth.getSession();
   if(!session){await loadLoginList();const last=LS.get('last');if(last&&S.loginList)S.loginSel=S.loginList.find(x=>x.login===last)||null;S.needLogin=true;S.ready=true;return schedule();}
-  const {data:row}=await sb.from('staff').select('login,name,role,active').eq('uid',session.user.id).maybeSingle();
+  const {data:row}=await sb.from('staff').select('login,name,role,active,point,title').eq('uid',session.user.id).maybeSingle();
   if(!row||!row.active){await sb.auth.signOut();await loadLoginList();S.loginErr='Аккаунт отключён. Обратитесь к владельцу.';S.needLogin=true;S.ready=true;return schedule();}
   S.me=row;S.isOwner=row.role==='owner';S.uid=row.login;
   try{const t=await rpc('now_ms',{});S.skew=Number(t)-Date.now();}catch(e){S.skew=0;}
