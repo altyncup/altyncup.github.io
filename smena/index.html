@@ -681,7 +681,7 @@ function checkOutSheet(pid){
       h('button',{class:'btn gold',onclick:()=>{closeSheet();pickPhoto({selfie:true,cb:f=>doCheck(pid,'out',f)});}},'Селфи и уйти'))]);
 }
 const crewHas=(pid,b)=>!!S.days[pid]?.crew?.[b];
-function breakAllowed(){const b=me();if(!b)return false;const k=S.today+'|'+b;
+function breakAllowed(){const b=me();if(!b||(S.me&&S.me.role==='manager'))return false;const k=S.today+'|'+b;
   if(!S.brkOk||S.brkOk.k!==k){S.brkOk={k,v:false};rpc('break_ok',{p_date:S.today}).then(v=>{if(S.brkOk.k===k){S.brkOk.v=!!v;schedule();}}).catch(()=>{});}
   return S.brkOk.v;}
 async function doBreak(pid,kind,file){
@@ -1128,7 +1128,7 @@ function viewNow(){
       :h('div',{class:'hero-acts'},cfg.points.filter(p=>!S.staff[b]?.point||S.staff[b].point===p.id).map(p=>h('button',{class:'btn gold grow',onclick:()=>checkIn(p.id),html:I.cam},h('span',{text:shortP(p.name)+' — я пришёл'})))));
     v.append(ratingCard());return v;
   }
-  const doc=S.days[pid];const plan=planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===myRole());const marks=doc?.marks||{};const crew=doc?.crew||{};
+  const doc=S.days[pid];const plan=(S.me&&S.me.role==='manager')?[]:planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===myRole());const marks=doc?.marks||{};const crew=doc?.crew||{};
   const c=classify(pid,date,plan,marks,now);
   const myC=b?crew[b]:null;const myIn=myC&&myC.in;
   const inIds=Object.keys(crew).filter(id=>crew[id]&&crew[id].in).sort((x,y)=>crew[x].in.at-crew[y].in.at);
@@ -1160,7 +1160,8 @@ function viewNow(){
   const queue=[...c.overdue.slice().sort(byDl).map(i=>[i,true]),...cur.filter(i=>!i.opt).sort(byDl).map(i=>[i,false]),...cur.filter(i=>i.opt).map(i=>[i,false])];
   const curReq=cur.filter(i=>!i.opt);
   let head,sub='';
-  if(curReq.length){const dl=Math.min(...curReq.map(i=>i.dl));head=`Осталось ${curReq.length} ${plural(curReq.length,'задача','задачи','задач')} до ${tm(dl)}`;sub=PHASE[c.phase];}
+  if(!plan.length&&!mgr||(S.me&&S.me.role==='manager')){head='Ваши отметки — приход и уход';sub='Задач в чек-листе у вас нет.';}
+  else if(curReq.length){const dl=Math.min(...curReq.map(i=>i.dl));head=`Осталось ${curReq.length} ${plural(curReq.length,'задача','задачи','задач')} до ${tm(dl)}`;sub=PHASE[c.phase];}
   else if(c.overdue.length)head='Закройте просроченное';
   else{head='Сейчас всё сделано';sub=c.next?'Следующий отчёт откроется в '+tm(c.next):(c.later.length?'Закрытие можно начать заранее — оно ниже':'');}
   v.append(h('div',{class:'remain'},h('b',{text:head}),sub?h('span',{text:sub}):null));
@@ -1207,7 +1208,7 @@ function staffSheet(b,docs,key){
     const mine=plan.filter(it=>marks[it.k]&&marks[it.k].b===b);if(!(c&&c.in)&&!mine.length)continue;shifts++;
     let l=0;if(c&&c.in){l=lateBy(d.point,d.date,b,crew);if(l){lateN++;lateMin+=l;}}
     hours+=payHours(d,c)||0;
-    const past=d.date<S.today;const miss=plan.filter(i=>!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
+    const past=d.date<S.today;const miss=plan.filter(i=>(i.role||'barista')===roleOf(b)&&!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
     let bk=0;for(const it of mine){const m=marks[it.k];if(m.late)lateMarks++;if(isBackfill(marks,it,m)){back++;bk++;}}
     rows.push({d,c,l,miss,bk});}
   const kv=(n,t,bad)=>h('div',{class:'kbox'+(bad?' bad':'')},h('b',{text:String(n)}),h('span',{text:t}));
