@@ -497,7 +497,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
 /* mobile bar */
 .mbar{display:none}
 @media (max-width:760px){
-  .mbar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px var(--gr) calc(7px + env(safe-area-inset-bottom,0px)) var(--gl)}
+  .mbar{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:55;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:7px var(--gr) calc(7px + env(safe-area-inset-bottom,0px)) var(--gl)}
   .mbar a{display:grid;justify-items:center;gap:2px;padding:7px 2px;border-radius:12px;text-decoration:none;font-size:.74rem;font-weight:600;color:var(--ink-2)}
   .mbar a svg{width:22px;height:22px}
   .mbar a.wa{background:var(--gold)}
@@ -511,8 +511,8 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
 </style>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"CafeOrCoffeeShop","name":"AltynCup — Кулманова","telephone":"+77028880718","address":{"@type":"PostalAddress","streetAddress":"ул. Кулманова, 111Г","addressLocality":"Атырау","addressCountry":"KZ"},"openingHours":["Mo-Fr 08:00-23:00","Sa-Su 09:00-23:00"],"sameAs":["https://www.instagram.com/altyncup"]},
-{"@type":"CafeOrCoffeeShop","name":"AltynCup — Султан Бейбарыс","telephone":"+77028880718","address":{"@type":"PostalAddress","streetAddress":"ул. Султан Бейбарыс, 55А","addressLocality":"Атырау","addressCountry":"KZ"},"openingHours":["Mo-Fr 08:00-23:00","Sa-Su 09:00-23:00"],"sameAs":["https://www.instagram.com/altyncup"]}
+{"@type":"CafeOrCoffeeShop","name":"AltynCup — Кулманова","address":{"@type":"PostalAddress","streetAddress":"ул. Кулманова, 111Г","addressLocality":"Атырау","addressCountry":"KZ"},"openingHours":["Mo-Fr 08:00-23:00","Sa-Su 09:00-23:00"],"sameAs":["https://www.instagram.com/altyncup"]},
+{"@type":"CafeOrCoffeeShop","name":"AltynCup — Султан Бейбарыс","address":{"@type":"PostalAddress","streetAddress":"ул. Султан Бейбарыс, 55А","addressLocality":"Атырау","addressCountry":"KZ"},"openingHours":["Mo-Fr 08:00-23:00","Sa-Su 09:00-23:00"],"sameAs":["https://www.instagram.com/altyncup"]}
 ]}
 </script>
 </head>
@@ -532,7 +532,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
       <a href="#business" data-i18n="nav.b2b">Кофе для бизнеса</a>
       <a href="#franchise" data-i18n="nav.fr">Франшиза</a>
     </nav>
-    <a class="top-call" href="#" data-call data-track="click_call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><span data-phone-text></span></a>
+    <a class="top-call" href="#" data-wa="general" data-track="click_instagram_dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span>@altyncup</span></a>
     <div class="lang" role="group" aria-label="Язык"><button type="button" id="lang-ru" aria-pressed="true">RU</button><button type="button" id="lang-kk" aria-pressed="false">ҚАЗ</button></div>
     <button class="burger" id="burger" type="button" aria-label="Разделы сайта" aria-expanded="false" aria-controls="nav"><span></span></button>
   </div>
@@ -725,8 +725,8 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
   <div class="phero night"><div class="wrap">
     <p class="eyebrow" data-i18n="bz.eyebrow">Кофе для бизнеса</p>
     <h1 data-i18n="bz.h">Свежеобжаренный кофе для офиса, кафе и отеля в Атырау</h1>
-    <p class="lead" data-i18n="bz.p">Обжариваем в своём цехе в городе. Рассчитаем цену под ваш объём и кофемашину за один звонок.</p>
-    <div class="btns"><a class="btn btn-gold" href="#b2b-form" data-i18n="bz.cta">Получить расчёт</a><a class="btn btn-ghost-night" href="#" data-call data-track="click_call"><span data-i18n="bz.call">Позвонить</span>&nbsp;<span data-phone-text></span></a></div>
+    <p class="lead" data-i18n="bz.p">Обжариваем в своём цехе в городе. Напишите нам в Instagram, и мы рассчитаем цену под ваш объём и кофемашину.</p>
+    <div class="btns"><a class="btn btn-gold" href="#b2b-form" data-i18n="bz.cta">Получить расчёт</a><a class="btn btn-ghost-night" href="#" data-wa="general" data-track="click_instagram_dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span data-i18n="ig.dm">Написать в Instagram</span></a></div>
   </div></div>
   <section><div class="wrap">
     <div class="head"><div><p class="eyebrow" data-i18n="bz.w.eyebrow">Форматы</p><h2 data-i18n="bz.w.h">Что мы поставляем</h2></div></div>
@@ -739,7 +739,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
   <section style="padding-top:0"><div class="wrap">
     <div class="head"><div><p class="eyebrow" data-i18n="bs.eyebrow">Как начать</p><h2 data-i18n="bs.h">От заявки до первой поставки</h2></div></div>
     <div class="steps">
-      <div><h3 data-i18n="bs1.h">Заявка</h3><p data-i18n="bs1.p">Оставьте контакты и примерный объём. Можно позвонить.</p></div>
+      <div><h3 data-i18n="bs1.h">Заявка</h3><p data-i18n="bs1.p">Оставьте контакты и примерный объём или напишите нам в Instagram.</p></div>
       <div><h3 data-i18n="bs2.h">Расчёт</h3><p data-i18n="bs2.p">Скажем цену за кг под ваш объём и предложим лоты под ваше оборудование.</p></div>
       <div><h3 data-i18n="bs3.h">Проба</h3><p data-i18n="bs3.p">Сварим ваши лоты в кофейне, чтобы вы попробовали до закупки.</p></div>
       <div><h3 data-i18n="bs4.h">Поставки</h3><p data-i18n="bs4.p">Договор и поставки свежей обжарки по согласованному графику.</p></div>
@@ -748,7 +748,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
   <section style="padding-top:0"><div class="wrap">
     <div class="head"><div><p class="eyebrow" data-i18n="qa.eyebrow">Частые вопросы</p><h2 data-i18n="qa.h">Что спрашивают закупщики</h2></div></div>
     <div class="qa">
-      <details><summary data-i18n="q1">Сколько стоит?</summary><p data-i18n="a1">Цена зависит от лота и объёма в месяц. Назовём её на первом звонке, пришлём коммерческое предложение.</p></details>
+      <details><summary data-i18n="q1">Сколько стоит?</summary><p data-i18n="a1">Цена зависит от лота и объёма в месяц. Назовём её в ответ на заявку и пришлём коммерческое предложение.</p></details>
       <details><summary data-i18n="q2">Как с оплатой и документами?</summary><p data-i18n="a2">Формат договора, оплаты и документы для бухгалтерии обсудим при расчёте.</p></details>
       <details><summary data-i18n="q3">Какой минимальный заказ?</summary><p data-i18n="a3">Зависит от формата поставки. Офисам подходят пачки по 1 кг. Точный минимум назовём при расчёте.</p></details>
       <details><summary data-i18n="q4">Насколько свежий кофе?</summary><p data-i18n="a4">Мы обжариваем в своём цехе в Атырау. Дата обжарки напечатана на каждой пачке.</p></details>
@@ -757,11 +757,10 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
   <section style="padding-top:0" id="b2b-form"><div class="wrap formwrap">
     <div style="display:grid;gap:16px;align-content:start">
       <h2 data-i18n="f.h">Получить расчёт</h2>
-      <p class="lead" data-i18n="f.p">Заполните форму, и заявка откроется в WhatsApp готовым сообщением. Нажмите «Отправить», и мы ответим.</p>
+      <p class="lead" data-i18n="f.p">Заполните форму и нажмите кнопку. Текст заявки скопируется, и откроется Direct @altyncup: вставьте текст и отправьте.</p>
       <div class="contact-card">
-        <div><div class="k" data-i18n="f.k1">Телефон и WhatsApp</div><div class="v" data-phone-text></div></div>
-        <div><div class="k">Email</div><div class="v">adilbekkadyrbayev@gmail.com</div></div>
-        <a class="btn btn-gold" href="#" data-call data-track="click_call" data-i18n="f.callbtn">Позвонить сейчас</a>
+        <div><div class="k" data-i18n="f.k1">Пишите в Instagram</div><div class="v">@altyncup</div></div>
+        <a class="btn btn-gold" href="#" data-wa="general" data-track="click_instagram_dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span data-i18n="ig.dm">Написать в Instagram</span></a>
       </div>
     </div>
     <form class="form" id="b2b" novalidate>
@@ -783,7 +782,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
         </div></fieldset>
         <div class="field full"><label for="f-comment" data-i18n="f.comment">Комментарий</label><textarea id="f-comment" name="comment" data-i18n-ph="f.comment.ph" placeholder="Например: кофемашина De'Longhi, 40 чашек в день"></textarea></div>
       </div>
-      <div class="form-foot"><a class="btn btn-ink" id="b2b-send" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg><span data-i18n="f.send">Отправить в WhatsApp</span></a><small data-i18n="f.note">Ответим в рабочее время</small></div>
+      <div class="form-foot"><a class="btn btn-ink" id="b2b-send" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span data-i18n="f.send">Отправить в Instagram</span></a><small data-i18n="f.note">Ответим в рабочее время</small></div>
     </form>
   </div></section>
 </div>
@@ -793,7 +792,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
   <div class="phero gold"><div class="wrap">
     <p class="eyebrow" data-i18n="fr.eyebrow">Франшиза</p><h1 data-i18n="fr.h">Откройте AltynCup в своём городе</h1>
     <p class="lead" data-i18n="fr.p">Мы передаём партнёру всё, на чём работают наши кофейни: стандарты, меню, дизайн, маркетинг и поставки кофе и десертов собственного производства.</p>
-    <div class="btns"><a class="btn btn-ink" href="#" data-wa="franchise" data-track="click_franchise" data-i18n="fr.cta">Обсудить открытие</a><a class="btn" href="#" data-call data-track="click_call"><span data-phone-text></span></a></div>
+    <div class="btns"><a class="btn btn-ink" href="#" data-wa="franchise" data-track="click_franchise" data-i18n="fr.cta">Обсудить открытие</a></div>
   </div></div>
 
   <section style="padding-top:0"><div class="wrap">
@@ -826,7 +825,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
       <div style="display:grid;gap:12px;align-content:start"><img src="logo-v.png" alt="AltynCup" width="130" height="62" style="width:130px"><small>Take your coffee experience to the next level</small></div>
       <div><h4 data-i18n="ft.c">Кофейни</h4><div class="list" id="foot-cafes"></div></div>
       <div><h4 data-i18n="ft.s">Разделы</h4><div class="list"><a href="#menu" data-i18n="nav.menu">Меню</a><a href="#beans" data-i18n="nav.beans">Зерно домой</a><a href="#about" data-i18n="nav.about">О нас</a><a href="#business" data-i18n="nav.b2b">Кофе для бизнеса</a><a href="#franchise" data-i18n="nav.fr">Франшиза</a></div></div>
-      <div><h4 data-i18n="ft.k">Связь</h4><div class="list"><a href="#" data-call data-phone-text></a><a href="#" data-wa="general" data-track="click_whatsapp">WhatsApp</a><a href="https://www.instagram.com/altyncup" target="_blank" rel="noopener">Instagram @altyncup</a><a href="#" data-wolt>Wolt</a></div></div>
+      <div><h4 data-i18n="ft.k">Связь</h4><div class="list"><a href="#" data-wa="general" data-track="click_instagram_dm" data-i18n="ig.dm">Написать в Instagram</a><a href="https://www.instagram.com/altyncup" target="_blank" rel="noopener">Instagram @altyncup</a><a href="#" data-wolt>Wolt</a></div></div>
     </div>
     <div class="legal"><span>© 2026 AltynCup · Атырау</span><span>Жаңа қуырылған кофе · Свежеобжаренный кофе</span></div>
   </div>
@@ -835,8 +834,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
 <nav class="mbar" aria-label="Быстрые действия">
   <a href="#" id="mb-route" data-track="click_route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-i18n="mb.route">Маршрут</span></a>
   <a href="#menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg><span data-i18n="nav.menu">Меню</span></a>
-  <a href="#" data-call data-track="click_call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><span data-i18n="mb.call">Звонок</span></a>
-  <a href="#" class="wa" data-wa="general" data-track="click_whatsapp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg><span>WhatsApp</span></a>
+  <a href="#" class="wa" data-wa="general" data-track="click_instagram_dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span>Instagram</span></a>
 </nav>
 
 <div class="sheet" id="sheet" hidden><div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-h"><h3 id="sheet-h" data-i18n="sh.h">В какую кофейню?</h3><div id="sheet-b" style="display:grid;gap:10px"></div><button class="btn" type="button" id="sheet-x" data-i18n="sh.x">Закрыть</button></div></div>
@@ -844,8 +842,7 @@ footer{background:var(--night);color:#fff;padding-block:52px 34px}
 <script>
 /* ============ CONFIG ============ */
 const CONFIG = {
-  whatsapp: "77028880718",          // из презентации AltynCup (Адильбек). Подтвердить: этот ли номер давать гостям
-  phone: "+7 702 888-07-18",
+  igDirect: "https://ig.me/m/altyncup",
   wolt: "https://wolt.com/ru/kaz/atyrau", // TODO: прямая ссылка на заведение
   instagram: "https://www.instagram.com/altyncup"
 };
@@ -972,21 +969,21 @@ const KK = {
  "a.eyebrow":"Біз туралы","a.h":"AltynCup — Атыраудан шыққан кофе бренді","a.p":"2023 жылдан. Екі кофехана, өз қуыру цехы, өз кондитерлік цехы және авторлық сусындар мен тағамдар ойлап табатын дәм зертханасы.","a.q":"«Біз өзіміз сенетін кофе жасаймыз»","a.q2":"Жасыл дәннен кесеге дейін әр кезеңді өзіміз бақылаймыз. Сондықтан кофе жаңа, ал дәмі екі кофеханада бірдей.","a.btn":"Қонаққа келіңіз",
  "pc.eyebrow":"Дәннің жолы","pc.h":"Кофе кесеге қалай жетеді","pc1.b":"Жасыл дән","pc1.s":"Вакуумды пакеттерде сақтаймыз. Әрқайсысында аймақ, биіктік, өңдеу және SCA бағасы көрсетілген.","pc2.b":"Қуыру","pc2.s":"Weroast R4.2-де өзіміз қуырамыз, эспрессо мен фильтрге бөлек.","pc3.b":"Күні жазылған қорап","pc3.s":"Затбелгіде қуыру күні, дәмі, аймақ және биіктік.","pc4.b":"Бар","pc4.s":"Дәл осы кофе эспрессоға, капучиноға және фильтрге барады. Ұнаса, үйге қорап алыңыз.",
  "gl.eyebrow":"Затбелгіні қалай оқу керек","gl.h":"Қораптағы үш сөз","gl1.h":"Сапа бағасы","gl1.p":"Specialty Coffee Association шкаласы бойынша балл. 80-нен бастап кофе specialty саналады. Біздің лоттарда 83.5-тен 87.25-ке дейін.","gl2.t":"Биіктік","gl2.h":"Кофе қайда өсті","gl2.p":"Неғұрлым биік өссе, соғұрлым баяу піседі, дәмі жарқын. 900 м-дегі Бразилия шоколад пен жаңғақ, 1800 м-дегі Колумбия жидек пен цитрус береді.","gl3.t":"Өңдеу","gl3.h":"Дәнді жидектен қалай бөлді","gl3.p":"Жуылған: таза, жарқын дәм. Табиғи: тәттілік пен тығыздық. Анаэробты: вермут немесе манго сияқты күрделі ноталар.",
- "bz.eyebrow":"Бизнеске кофе","bz.h":"Атыраудағы кеңсеге, кафеге және қонақүйге жаңа қуырылған кофе","bz.p":"Қаладағы өз цехымызда қуырамыз. Көлеміңіз бен кофемашинаңызға бағаны бір қоңырауда есептейміз.","bz.cta":"Есеп алу","bz.call":"Қоңырау",
+ "bz.eyebrow":"Бизнеске кофе","bz.h":"Атыраудағы кеңсеге, кафеге және қонақүйге жаңа қуырылған кофе","bz.p":"Қаладағы өз цехымызда қуырамыз. Instagram-ға жазыңыз, көлеміңіз бен кофемашинаңызға бағаны есептейміз.","bz.cta":"Есеп алу",
  "bz.w.eyebrow":"Форматтар","bz.w.h":"Не жеткіземіз","w1.w":"Кеңселер","w1.h":"Командаға кофе","w1.1":"Кофемашинаға 1 кг дән","w1.2":"Атырау бойынша кесте бойынша жеткізу","w1.3":"Ай сайын тұрақты көлем","w2.h":"Кафе, мейрамхана, қонақүй","w2.1":"Brazil Cerrado және Peru Amazonas эспрессо лоттары","w2.2":"84.25-тен 87.25 SCA-ға дейінгі фильтр лоттары","w2.3":"Партиядан партияға бір қуыру профилі","w3.w":"Сыйлықтар","w3.h":"Корпоративтік жиынтықтар","w3.1":"Фирмалық қаптамадағы 250 г және 1 кг","w3.2":"Мерекелерге және серіктестерге","w3.3":"Бюджетіңіз бен санына қарай",
- "bs.eyebrow":"Қалай бастау керек","bs.h":"Өтінімнен алғашқы жеткізуге дейін","bs1.h":"Өтінім","bs1.p":"Байланыс пен шамамен көлемді қалдырыңыз. Қоңырау шалуға болады.","bs2.h":"Есеп","bs2.p":"Көлеміңізге 1 кг бағасын айтып, жабдығыңызға лот ұсынамыз.","bs3.h":"Дегустация","bs3.p":"Сатып алмас бұрын лоттарыңызды кофеханада дайындаймыз.","bs4.h":"Жеткізу","bs4.p":"Келісім-шарт және келісілген кесте бойынша жеткізу.",
- "qa.eyebrow":"Жиі қойылатын сұрақтар","qa.h":"Сатып алушылар не сұрайды","q1":"Қанша тұрады?","a1":"Баға лот пен айлық көлемге байланысты. Алғашқы қоңырауда айтып, коммерциялық ұсыныс жібереміз.","q2":"Төлем мен құжаттар қалай?","a2":"Келісім-шарт, төлем және бухгалтерия құжаттарын есептеу кезінде талқылаймыз.","q3":"Ең аз тапсырыс қандай?","a3":"Жеткізу форматына байланысты. Кеңселерге 1 кг қораптар лайық. Нақты минимумды есептеу кезінде айтамыз.","q4":"Кофе қаншалықты жаңа?","a4":"Атыраудағы өз цехымызда қуырамыз. Қуыру күні әр қорапта басылған.",
- "f.h":"Есеп алу","f.p":"Форманы толтырыңыз, өтінім WhatsApp-та дайын хабарлама болып ашылады. «Жіберу» басыңыз, біз жауап береміз.","f.k1":"Телефон және WhatsApp","f.callbtn":"Қазір қоңырау шалу","f.name":"Аты","f.company":"Компания","f.phone":"Телефон","f.type":"Кофе не үшін","ft1":"Кеңсе","ft2":"Кафе немесе мейрамхана","ft3":"Қонақүй","ft4":"Сыйлықтар","f.vol":"Айлық көлем","fv1":"5 кг дейін","fv4":"Білмеймін","f.comment":"Пікір","f.comment.ph":"Мысалы: De'Longhi кофемашинасы, күніне 40 кесе","f.send":"WhatsApp-қа жіберу","f.note":"Жұмыс уақытында жауап береміз",
+ "bs.eyebrow":"Қалай бастау керек","bs.h":"Өтінімнен алғашқы жеткізуге дейін","bs1.h":"Өтінім","bs1.p":"Байланыс пен шамамен көлемді қалдырыңыз немесе Instagram-ға жазыңыз.","bs2.h":"Есеп","bs2.p":"Көлеміңізге 1 кг бағасын айтып, жабдығыңызға лот ұсынамыз.","bs3.h":"Дегустация","bs3.p":"Сатып алмас бұрын лоттарыңызды кофеханада дайындаймыз.","bs4.h":"Жеткізу","bs4.p":"Келісім-шарт және келісілген кесте бойынша жеткізу.",
+ "qa.eyebrow":"Жиі қойылатын сұрақтар","qa.h":"Сатып алушылар не сұрайды","q1":"Қанша тұрады?","a1":"Баға лот пен айлық көлемге байланысты. Өтінімге жауап ретінде айтып, коммерциялық ұсыныс жібереміз.","q2":"Төлем мен құжаттар қалай?","a2":"Келісім-шарт, төлем және бухгалтерия құжаттарын есептеу кезінде талқылаймыз.","q3":"Ең аз тапсырыс қандай?","a3":"Жеткізу форматына байланысты. Кеңселерге 1 кг қораптар лайық. Нақты минимумды есептеу кезінде айтамыз.","q4":"Кофе қаншалықты жаңа?","a4":"Атыраудағы өз цехымызда қуырамыз. Қуыру күні әр қорапта басылған.",
+ "f.h":"Есеп алу","f.p":"Форманы толтырып, батырманы басыңыз. Өтінім мәтіні көшіріледі де, @altyncup Direct ашылады: мәтінді қойып, жіберіңіз.","f.k1":"Instagram-ға жазыңыз","ig.dm":"Instagram-ға жазу","f.name":"Аты","f.company":"Компания","f.phone":"Телефон","f.type":"Кофе не үшін","ft1":"Кеңсе","ft2":"Кафе немесе мейрамхана","ft3":"Қонақүй","ft4":"Сыйлықтар","f.vol":"Айлық көлем","fv1":"5 кг дейін","fv4":"Білмеймін","f.comment":"Пікір","f.comment.ph":"Мысалы: De'Longhi кофемашинасы, күніне 40 кесе","f.send":"Instagram-ға жіберу","f.note":"Жұмыс уақытында жауап береміз",
  "fr.eyebrow":"Франшиза","fr.h":"Өз қалаңызда AltynCup ашыңыз","fr.p":"Серіктеске кофеханаларымыздың барлық негізін береміз: стандарттар, мәзір, дизайн, маркетинг және өзіміз өндірген кофе мен десерттерді жеткізу.","fr.cta":"Ашуды талқылау",
  "fi.eyebrow":"Не кіреді","fi.h":"Әр кезеңде қолдау","fi1.h":"Іске қосу","fi1.1":"Орын мен жалға алуға көмек","fi1.2":"Фирмалық стильдегі дизайн-жоба","fi1.3":"Мәзір және баға саясаты","fi1.4":"Бариста мен басқарушыларды оқыту","fi2.h":"Маркетинг","fi2.1":"Іске қосу стратегиясы","fi2.2":"Визуалды контент және жарнама материалдары","fi2.3":"Жеке куратор","fi2.4":"Білім базасы және желі БҚ","fi3.h":"Жеткізу","fi3.1":"Өзіміз қуырған кофе","fi3.2":"Өз цехымыздың десерттері мен тоқаштары (Атырау)","fi3.3":"Орталықтандырылған сатып алу арқылы жабдық пен шығын материалдары","fi3.4":"Бүкіл желіге бір қуыру профилі",
  "fs.eyebrow":"Кезеңдер","fs.h":"Кофехана қалай ашылады","fs1":"Өтінім","fs1p":"Хабарласып, егжей-тегжейін талқылаймыз.","fs2":"Танысу","fs2p":"Мақсаттар, формат, перспективалар.","fs3":"Шарт","fs3p":"Ынтымақтастық шарттарын бекітеміз.","fs4":"Орын","fs4p":"Орын таңдап, қаржы моделін есептейміз.","fs5":"Дизайн","fs5p":"Фирмалық стильдегі концепция.","fs6":"Құрылыс","fs6p":"Мердігерлер, жиһаз, жабдық.","fs7":"Оқыту","fs7p":"Команда AltynCup стандарттары бойынша оқиды.","fs8":"Іске қосу","fs8p":"Ашылу және кейінгі сүйемелдеу.",
- "ft.c":"Кофеханалар","ft.s":"Бөлімдер","ft.k":"Байланыс","mb.route":"Бағыт","mb.call":"Қоңырау","sh.h":"Қай кофеханаға?","sh.x":"Жабу"
+ "ft.c":"Кофеханалар","ft.s":"Бөлімдер","ft.k":"Байланыс","mb.route":"Бағыт","sh.h":"Қай кофеханаға?","sh.x":"Жабу"
 };
 const T = {
- ru:{open:"Открыто до",closed:"Закрыто · откроется в",route:"Маршрут",gm:"Google Maps",call:"Позвонить",wa:"WhatsApp",weekdays:"Пн–пт",weekend:"Сб, вс, праздники",from:"с",ask:"Узнать цену и заказать",perPack:"цену скажем в WhatsApp",esp:"Под эспрессо",fil:"Под фильтр",proc:"Обработка",taste:"Во вкусе",net:"Масса нетто",roast:"Дата обжарки",onpack:"на пачке",hit:"хит",noresults:"Ничего не нашли. Попробуйте «латте» или «завтрак».",city:"Атырау",ext:"Дополнительно",garn:"Гарниры",sauce:"Соусы",bread:"Хлеб",milk:"Альтернативное молоко",syrup:"Сироп",from2:"от",
+ ru:{open:"Открыто до",closed:"Закрыто · откроется в",route:"Маршрут",gm:"Google Maps",weekdays:"Пн–пт",weekend:"Сб, вс, праздники",from:"с",ask:"Узнать цену и заказать",perPack:"цену скажем в Direct",esp:"Под эспрессо",fil:"Под фильтр",proc:"Обработка",taste:"Во вкусе",net:"Масса нетто",roast:"Дата обжарки",onpack:"на пачке",hit:"хит",noresults:"Ничего не нашли. Попробуйте «латте» или «завтрак».",city:"Атырау",ext:"Дополнительно",garn:"Гарниры",sauce:"Соусы",bread:"Хлеб",milk:"Альтернативное молоко",syrup:"Сироп",from2:"от",
    waGeneral:"Здравствуйте! Пишу с сайта AltynCup.",waApp:"Здравствуйте! Сообщите, пожалуйста, когда выйдет приложение AltynCup.",waFr:"Здравствуйте! Интересует франшиза AltynCup, хочу обсудить открытие.",waBean:n=>`Здравствуйте! Хочу купить зерно ${n}. Подскажите цену и где забрать.`,
    req:"Напишите, как к вам обращаться",phoneBad:"Проверьте номер: нужно 10–11 цифр",reqT:"Заявка на кофе для бизнеса (с сайта)",fN:"Имя",fC:"Компания",fP:"Телефон",fT:"Для чего",fV:"Объём в месяц",fM:"Комментарий"},
- kk:{open:"Ашық, жабылуы",closed:"Жабық · ашылуы",route:"Бағыт",gm:"Google Maps",call:"Қоңырау шалу",wa:"WhatsApp",weekdays:"Дс–Жм",weekend:"Сн, Жс, мерекелер",from:"",ask:"Бағасын білу және тапсырыс",perPack:"бағасын WhatsApp-та айтамыз",esp:"Эспрессоға",fil:"Фильтрге",proc:"Өңдеу",taste:"Дәмі",net:"Таза салмағы",roast:"Қуыру күні",onpack:"қорапта",hit:"хит",noresults:"Ештеңе табылмады. «латте» немесе «таңғы ас» деп көріңіз.",city:"Атырау",ext:"Қосымша",garn:"Гарнирлер",sauce:"Тұздықтар",bread:"Нан",milk:"Балама сүт",syrup:"Сироп",from2:"",
+ kk:{open:"Ашық, жабылуы",closed:"Жабық · ашылуы",route:"Бағыт",gm:"Google Maps",weekdays:"Дс–Жм",weekend:"Сн, Жс, мерекелер",from:"",ask:"Бағасын білу және тапсырыс",perPack:"бағасын Direct-те айтамыз",esp:"Эспрессоға",fil:"Фильтрге",proc:"Өңдеу",taste:"Дәмі",net:"Таза салмағы",roast:"Қуыру күні",onpack:"қорапта",hit:"хит",noresults:"Ештеңе табылмады. «латте» немесе «таңғы ас» деп көріңіз.",city:"Атырау",ext:"Қосымша",garn:"Гарнирлер",sauce:"Тұздықтар",bread:"Нан",milk:"Балама сүт",syrup:"Сироп",from2:"",
    waGeneral:"Сәлеметсіз бе! AltynCup сайтынан жазып отырмын.",waApp:"Сәлеметсіз бе! AltynCup қосымшасы шыққанда хабарлаңызшы.",waFr:"Сәлеметсіз бе! AltynCup франшизасы қызықтырады, ашуды талқылағым келеді.",waBean:n=>`Сәлеметсіз бе! ${n} дәнін сатып алғым келеді. Бағасын және қайдан алуға болатынын айтыңызшы.`,
    req:"Сізге қалай жүгінуге болатынын жазыңыз",phoneBad:"Нөмірді тексеріңіз: 10–11 сан керек",reqT:"Бизнеске кофе өтінімі (сайттан)",fN:"Аты",fC:"Компания",fP:"Телефон",fT:"Не үшін",fV:"Айлық көлем",fM:"Пікір"}
 };
@@ -995,7 +992,9 @@ const t=k=>T[LANG][k];
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=n=>n==null?"—":n.toLocaleString("ru-RU").replace(/\s/g," ")+" ₸";
-const waHref=txt=>`https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(txt)}`;
+const waHref=()=>CONFIG.igDirect;
+function toast(msg){const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3200);}
+function dmClick(text){ if(!text) return; try{ navigator.clipboard.writeText(text).then(()=>toast(LANG==="kk"?"Мәтін көшірілді. Direct-ке қойып, жіберіңіз":"Текст скопирован. Вставьте его в Direct и отправьте"),()=>{}); }catch(e){} }
 
 /* analytics: подключите GA4 / Meta Pixel — события уже размечены */
 window.dataLayer=window.dataLayer||[];
@@ -1004,11 +1003,9 @@ document.addEventListener("click",e=>{const a=e.target.closest("[data-track]");i
 
 /* ============ static links ============ */
 function wireLinks(){
-  $$("[data-call]").forEach(a=>{a.href="tel:"+CONFIG.phone.replace(/[^\d+]/g,"");});
-  $$("[data-phone-text]").forEach(el=>el.textContent=CONFIG.phone);
   $$("[data-wolt]").forEach(a=>{a.href=CONFIG.wolt;a.target="_blank";a.rel="noopener";});
   const W={general:()=>t("waGeneral"),app:()=>t("waApp"),franchise:()=>t("waFr")};
-  $$("[data-wa]").forEach(a=>{a.href=waHref(W[a.dataset.wa]());a.target="_blank";a.rel="noopener";});
+  $$("[data-wa]").forEach(a=>{a.href=CONFIG.igDirect;a.target="_blank";a.rel="noopener";if(!a.dataset.dm){a.dataset.dm=1;a.addEventListener("click",()=>{if(a.dataset.wa!=="general")dmClick(W[a.dataset.wa]());});}});
 }
 
 /* ============ cafes & status ============ */
@@ -1025,7 +1022,7 @@ function cafeCard(c){
   return `<article class="cafe"><div class="ph"><img src="${c.img}" alt="AltynCup ${esc(c.ru)}" loading="lazy"><span class="tagchip"><span class="dot${s.open?"":" off"}"></span>${s.text}</span></div>
   <div class="cafe-b"><div style="display:grid;gap:4px"><span class="eyebrow">AltynCup · ${t("city")}</span><h3>${esc(LANG==="kk"?c.kk:c.ru)}</h3><p class="mute">${esc(LANG==="kk"?c.addrKk:c.addr)}</p></div>
   <dl class="hours"><dt>${t("weekdays")}</dt><dd>${hh(c.wk[0])} – ${hh(c.wk[1])}</dd><dt>${t("weekend")}</dt><dd>${t("from")} ${hh(c.we[0])}</dd></dl>
-  <div class="btns"><a class="btn btn-gold btn-sm" href="${g2(c)}" target="_blank" rel="noopener" data-track="click_route">${t("route")} 2GIS</a><a class="btn btn-sm" href="${gmap(c)}" target="_blank" rel="noopener" data-track="click_route">${t("gm")}</a><a class="btn btn-sm" href="tel:${CONFIG.phone.replace(/[^\d+]/g,"")}" data-track="click_call">${t("call")}</a></div></div></article>`;
+  <div class="btns"><a class="btn btn-gold btn-sm" href="${g2(c)}" target="_blank" rel="noopener" data-track="click_route">${t("route")} 2GIS</a><a class="btn btn-sm" href="${gmap(c)}" target="_blank" rel="noopener" data-track="click_route">${t("gm")}</a></div></div></article>`;
 }
 function renderCafes(){
   renderNow();
@@ -1092,19 +1089,20 @@ function label(b){
 }
 let bf="all";
 function renderBeans(){
-  $("#beans").innerHTML=BEANS.map(b=>{const y=b.type==="filter";return `<article class="bean" data-type="${b.type}"><div class="bag ${y?"yellow":"black"}">${label(b)}${y?'<span class="vert" aria-hidden="true">FILTER</span>':""}</div><div class="bean-b"><span class="for">${esc(LANG==="kk"?b.forKk:b.for)}</span><p>${esc(LANG==="kk"?b.noteKk:b.note)}</p><div class="bean-act"><span>${b.w} · ${t("perPack")}</span><a class="btn btn-ink btn-sm" href="${waHref(t("waBean")(b.name+" ("+b.w+")"))}" target="_blank" rel="noopener" data-track="click_order_beans">${t("ask")}</a></div></div></article>`;}).join("");
+  $("#beans").innerHTML=BEANS.map(b=>{const y=b.type==="filter";return `<article class="bean" data-type="${b.type}"><div class="bag ${y?"yellow":"black"}">${label(b)}${y?'<span class="vert" aria-hidden="true">FILTER</span>':""}</div><div class="bean-b"><span class="for">${esc(LANG==="kk"?b.forKk:b.for)}</span><p>${esc(LANG==="kk"?b.noteKk:b.note)}</p><div class="bean-act"><span>${b.w} · ${t("perPack")}</span><a class="btn btn-ink btn-sm" href="${CONFIG.igDirect}" target="_blank" rel="noopener" data-bean-dm="${esc(b.name+" ("+b.w+")")}" data-track="click_order_beans">${t("ask")}</a></div></div></article>`;}).join("");
   $$("#beans .bean").forEach(c=>c.hidden=bf!=="all"&&c.dataset.type!==bf);
   $("#roast-label").innerHTML=`<div style="position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);width:min(300px,90%)">${label(BEANS[0])}</div>`;
 }
 $$("[data-bf]").forEach(b=>b.addEventListener("click",()=>{bf=b.dataset.bf;$$("[data-bf]").forEach(x=>x.setAttribute("aria-pressed",x===b));$$("#beans .bean").forEach(c=>c.hidden=bf!=="all"&&c.dataset.type!==bf);}));
 
-/* ============ B2B form: одно нажатие открывает WhatsApp с готовой заявкой ============ */
+/* ============ B2B form: копирует заявку и открывает Instagram Direct ============ */
 function b2bText(){
   const f=$("#b2b"),fd=new FormData(f);
   const lab=n=>$(`input[name=${n}]:checked`).nextElementSibling.textContent;
   return `${t("reqT")}\n${t("fN")}: ${fd.get("name")}\n${t("fC")}: ${fd.get("company")||"—"}\n${t("fP")}: ${fd.get("phone")}\n${t("fT")}: ${lab("type")}\n${t("fV")}: ${lab("vol")}\n${t("fM")}: ${fd.get("comment")||"—"}`;
 }
-function syncB2B(){$("#b2b-send").href=waHref(b2bText());}
+function syncB2B(){$("#b2b-send").href=CONFIG.igDirect;}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-bean-dm]");if(a)dmClick(t("waBean")(a.dataset.beanDm));});
 $("#b2b").addEventListener("input",syncB2B);
 $("#b2b").addEventListener("change",syncB2B);
 $("#b2b").addEventListener("submit",e=>e.preventDefault());
@@ -1112,7 +1110,7 @@ $("#b2b-send").addEventListener("click",e=>{
   let ok=true;const chk=[["name",$("#f-name"),v=>v.trim().length>0,t("req")],["phone",$("#f-phone"),v=>{const d=v.replace(/\D/g,"").length;return d>=10&&d<=12;},t("phoneBad")]];
   chk.forEach(([k,el,test,msg])=>{const g=test(el.value);el.closest(".field").classList.toggle("bad",!g);$("#e-"+k).textContent=g?"":msg;if(!g&&ok){el.focus();ok=false;}});
   if(!ok){e.preventDefault();return;}
-  syncB2B(); track("b2b_submit",{type:new FormData($("#b2b")).get("type")});
+  syncB2B(); dmClick(b2bText()); track("b2b_submit",{type:new FormData($("#b2b")).get("type")});
 });
 $$("#b2b input").forEach(i=>i.addEventListener("input",()=>{i.closest(".field")?.classList.remove("bad");const er=$("#e-"+i.name);if(er)er.textContent="";}));
 
