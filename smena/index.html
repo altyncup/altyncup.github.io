@@ -1699,7 +1699,7 @@ function viewLogin(){
   const list=S.loginList||[];
   if(!S.loginSel){
     v.append(h('div',{class:'remain'},h('b',{text:'Кто вы?'}),h('span',{text:'Нажмите на своё имя'})));
-    const groups=[['Руководство',x=>x.role==='owner'||x.role==='manager'],['Бариста',x=>x.role==='barista'],['Кассиры',x=>x.role==='cashier'],['Раннеры',x=>x.role==='runner']];
+    const groups=[['Руководство',x=>x.role==='owner'||x.role==='manager'],['Шеф-бариста',x=>x.role==='chef'],['Бариста',x=>x.role==='barista'],['Кассиры',x=>x.role==='cashier'],['Раннеры',x=>x.role==='runner'],['Другие',x=>!['owner','manager','chef','barista','cashier','runner'].includes(x.role)]];
     for(const [t,f] of groups){const g=list.filter(f);if(!g.length)continue;
       v.append(section(t,null,h('div',{class:'pick',style:'margin-top:0'},g.map(x=>h('button',{onclick:()=>{S.loginSel=x;S.loginErr='';schedule();}},h('span',{text:x.name}))))));}
     if(!list.length&&S.loginList)v.append(h('div',{class:'list mt'},empty('Сотрудников пока нет.')));
@@ -1865,7 +1865,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-04c';let updT=0;
+const BUILD='2026-11-05a';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
