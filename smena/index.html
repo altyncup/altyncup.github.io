@@ -579,8 +579,7 @@ function dueScore(plan,marks,now){
 }
 function lateBy(pid,date,b,crew){
   const c=crew&&crew[b];if(!c||!c.in||roleOf(b)==='owner')return 0;
-  if(isWorker(b)&&c.in.at>firstIn(crew))return 0;
-  const d=Math.round((c.in.at-pointTimes(pid,date).open)/6e4);return d>Number(S.cfg.lateMin??15)?d:0;
+  const d=Math.round((c.in.at-pointTimes(pid,date).open)/6e4);if(d>SUB_MIN)return 0;return d>Number(S.cfg.lateMin??15)?d:0;
 }
 function payHours(d,c){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
   let cap=toMin(S.cfg.payUntil||'23:00');if(base+cap*6e4<=t.open)cap+=1440;
@@ -590,7 +589,7 @@ const fmtH=x=>x==null?'—':(Math.round(x*100)/100).toString().replace('.',',');
 const fmtDur=min=>{min=Math.max(0,Math.round(min));const hh=Math.floor(min/60),mm=min%60;return hh?hh+' ч'+(mm?' '+mm+' мин':''):mm+' мин';};
 const isWorker=b=>['barista','cashier','runner'].includes(roleOf(b));
 const firstIn=crew=>Object.entries(crew||{}).filter(([b,x])=>x&&x.in&&isWorker(b)).reduce((a,[,x])=>Math.min(a,x.in.at),Infinity);
-const isSub=(crew,c)=>!!(c&&c.in&&c.in.at-firstIn(crew)>60*6e4);
+const SUB_MIN=120;const isSub=(pid,c)=>!!(c&&c.in&&(c.in.at-pointTimes(pid,S.today).open)/6e4>SUB_MIN);
 const onDuty=(crew,c,it)=>!!(c&&c.in&&(c.in.at<=it.dl||c.in.at===firstIn(crew))&&(!c.out||c.out.at>=it.start));
 const isIn=pid=>{const b=me();return !!(b&&S.days[pid]?.crew?.[b]?.in);};
 const shortP=n=>String(n).replace(/\s+\S*\d\S*$/,'')||n;
@@ -1330,7 +1329,7 @@ function arrivals(pid,doc,plan,marks){
   return h('div',{class:'arr'},
     arr.length?arr.map(([b,c])=>{const l=lateBy(pid,S.today,b,crew);
       return h('span',{class:'arr-i'},c.in.photo?h('img',{class:'av',src:blobUrl(c.in.photo),alt:''}):h('span',{class:'av none',text:'—'}),h('span',{text:bName(b)+(isWorker(b)?'':' ('+(S.staff[b]?.title||ROLE[roleOf(b)])+')')+' · '+tm(c.in.at)}),
-        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):isSub(crew,c)?h('span',{class:'chip gold',text:'на замену'}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
+        l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):isSub(pid,c)?h('span',{class:'chip gold',text:'на замену'}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
       :h('span',{class:'dim small',text:S.now<t.open?'Открытие в '+tm(t.open)+'. Приходов пока нет.':'Приход ещё никто не отметил'}),
     ph.length?h('div',{class:'oph'},ph.map(i=>h('figure',{},marks[i.k].video?h('span',{class:'vt',html:PLAY}):h('img',{src:blobUrl(marks[i.k].photo),alt:i.t,loading:'lazy'}),h('figcaption',{text:(i.kind==='video'?'Видео':shortTask(i))+' '+tm(marks[i.k].at)})))):null);
 }
@@ -1344,7 +1343,7 @@ function openChip(pid,plan,marks){
 function chronicle(pid){
   const doc=S.days[pid];const plan=planOf(pid,S.today,doc);const marks=doc?.marks||{};const crew=doc?.crew||{};const ev=[];
   for(const [b,c] of Object.entries(crew)){if(!c)continue;
-    if(c.in){const l=lateBy(pid,S.today,b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:isSub(crew,c)?['gold','на замену']:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
+    if(c.in){const l=lateBy(pid,S.today,b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:isSub(pid,c)?['gold','на замену']:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
     for(const x of c.brk||[]){if(x.out)ev.push({at:x.out.at,photo:x.out.photo,title:'Отход · '+bName(b),chips:[x.in?null:['warn','отдыхает'],x.out.nv?['warn','без метки камеры']:null].filter(Boolean),cap:'Отход · '+bName(b)});
       if(x.in)ev.push({at:x.in.at,photo:x.in.photo,title:'Пришёл после отхода · '+bName(b),chips:[[x.in.at-x.out.at>70*6e4?'warn':'ok','отдых '+fmtDur((x.in.at-x.out.at)/6e4)]],cap:'Пришёл · '+bName(b)});}
     if(c.out){const hh=payHours({point:pid,date:S.today},c);ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[hh!=null?['','в табель '+fmtH(hh)+' ч']:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}}
@@ -1865,7 +1864,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-05a';let updT=0;
+const BUILD='2026-11-06a';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
