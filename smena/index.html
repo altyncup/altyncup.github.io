@@ -331,6 +331,7 @@ body.no-tabs .savebar{bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .tabel .nm small{color:var(--ink-2);font-weight:600}
 .tabel .tot{font-weight:900;color:var(--gold-ink)}
 .tabel td.miss{color:var(--danger);font-weight:900}
+.tabel td.cash{background:var(--gold-soft);font-weight:800}
 .tabel td.live{color:var(--ink-2)}
 .tabel tbody tr:last-child>*{border-bottom:0}
 .dnav{display:flex;align-items:center;gap:8px;margin:0 0 10px}
@@ -585,7 +586,14 @@ function lateBy(pid,date,b,crew){
 }
 function payHours(d,c){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
   let cap=toMin(S.cfg.payUntil||'23:00');if(base+cap*6e4<=t.open)cap+=1440;
-  const end=Math.min(c.out.at,base+cap*6e4,t.close),st=Math.max(c.in.at,t.open);return Math.max(0,end-st)/36e5;}
+  let end=Math.min(c.out.at,base+cap*6e4,t.close);const st=Math.max(c.in.at,t.open);
+  if(S.cfg.payFull&&c.out.at>=base+cap*6e4-15*6e4){let f=toMin(S.cfg.payFull);if(base+f*6e4<=t.open)f+=1440;end=Math.max(end,base+f*6e4);}
+  return Math.max(0,end-st)/36e5;}
+function monthsSince(from,date){const [y1,m1,d1]=from.split('-').map(Number),[y2,m2,d2]=date.split('-').map(Number);return (y2-y1)*12+(m2-m1)-(d2<d1?1:0);}
+function rateOf(b,pos,date){const R=S.cfg.rates||{};
+  if(pos==='barista'){const hd=S.cfg.hired?.[b];if(hd){const n=monthsSince(hd,date);if(n<1&&R.new1)return +R.new1;if(n<2&&R.new2)return +R.new2;}return R.barista!=null&&R.barista!==''?+R.barista:null;}
+  return R[pos]!=null&&R[pos]!==''?+R[pos]:null;}
+const fmtT=x=>x==null?'—':Math.round(x).toLocaleString('ru-RU')+' ₸';
 const onBreak=c=>{const b=c&&c.brk;const x=b&&b.length?b[b.length-1]:null;return x&&x.out&&!x.in?x:null;};
 const fmtH=x=>x==null?'—':(Math.round(x*100)/100).toString().replace('.',',');
 const fmtDur=min=>{min=Math.max(0,Math.round(min));const hh=Math.floor(min/60),mm=min%60;return hh?hh+' ч'+(mm?' '+mm+' мин':''):mm+' мин';};
@@ -661,18 +669,23 @@ async function startShift(pid){
     await enqueue(path,()=>S.db.doc(path).update({crew:{[b]:{at:Date.now()}}}));
     toast(`Смена началась. Удачи, ${bName(b)}.`);}catch(e){failToast(e);}
 }
-async function doCheck(pid,kind,file){
+async function doCheck(pid,kind,file,as){
   const b=me();if(!b)return;S.busy['ck'+pid]=kind;schedule();
   try{
     const id=await uploadPhoto(file);await ensureDay(pid,S.today);
     const path=docPath(pid,S.today);const cur=S.days[pid]?.crew?.[b]||{};
-    const v=await enqueue(path,()=>rpc('crew_check',{p_day:path.split('/')[1],p_kind:kind,p_photo:id,p_nv:FRESH[id]===false}));const at=v.at;
+    const v=await enqueue(path,()=>kind==='in'?rpc('crew_in',{p_day:path.split('/')[1],p_photo:id,p_nv:FRESH[id]===false,p_as:as||null}):rpc('crew_check',{p_day:path.split('/')[1],p_kind:kind,p_photo:id,p_nv:FRESH[id]===false}));const at=v.at;
     if(kind==='in'){const crew={...(S.days[pid]?.crew||{}),[b]:{...cur,in:v}};const l=lateBy(pid,S.today,b,crew);
-      toast(l?`Приход отмечен в ${tm(at)}. Опоздание ${fmtDur(l)}.`:`Приход отмечен в ${tm(at)}. Хорошей смены, ${bName(b)}!`);}
+      toast((l?`Приход отмечен в ${tm(at)}. Опоздание ${fmtDur(l)}.`:`Приход отмечен в ${tm(at)}. Хорошей смены, ${bName(b)}!`)+(as==='cashier'?' Сегодня вы — кассир.':''));}
     else{const hh=payHours({point:pid,date:S.today},{...cur,out:v});toast(`Уход в ${tm(at)}`+(hh!=null?` · в табель ${fmtH(hh)} ч`:'')+'. Спасибо за смену!');}
   }catch(e){failToast(e);}finally{delete S.busy['ck'+pid];schedule();}
 }
-function checkIn(pid){if(!me()){pickSheet();return;}pickPhoto({selfie:true,cb:f=>doCheck(pid,'in',f)});}
+function checkIn(pid){if(!me()){pickSheet();return;}
+  if(S.me&&S.me.role==='barista'){
+    const go=as=>{closeSheet();pickPhoto({selfie:true,cb:f=>doCheck(pid,'in',f,as)});};
+    openSheet('Кем выходите сегодня?',[h('p',{class:'hint',text:'Если вы сегодня заменяете кассира — выберите «Кассир»: откроются задачи кассира, и смена посчитается по ставке кассира.'}),
+      h('div',{style:'display:grid;gap:10px'},h('button',{class:'btn gold block',onclick:()=>go('barista')},'Бариста'),h('button',{class:'btn ghost block',onclick:()=>go('cashier')},'Кассир — на замену'))]);return;}
+  pickPhoto({selfie:true,cb:f=>doCheck(pid,'in',f)});}
 function needInSheet(pid){
   openSheet('Сначала — приход',[h('p',{class:'hint',text:'Сделайте селфи у бара, чтобы кофемашина была в кадре. Время прихода сразу увидит владелец. После этого задачи откроются.'}),
     h('button',{class:'btn gold block',onclick:()=>{closeSheet();checkIn(pid);},html:I.cam},h('span',{text:'Селфи — я пришёл'}))]);
@@ -1130,13 +1143,13 @@ function viewNow(){
       :h('div',{class:'hero-acts'},cfg.points.filter(p=>!S.staff[b]?.point||S.staff[b].point===p.id).map(p=>h('button',{class:'btn gold grow',onclick:()=>checkIn(p.id),html:I.cam},h('span',{text:shortP(p.name)+' — я пришёл'})))));
     v.append(ratingCard());return v;
   }
-  const doc=S.days[pid];const plan=['manager','chef'].includes((S.me&&S.me.role)||roleOf(b))?[]:planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===myRole());const marks=doc?.marks||{};const crew=doc?.crew||{};
+  const doc=S.days[pid];const plan=['manager','chef'].includes((S.me&&S.me.role)||roleOf(b))?[]:planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===dayRole(pid));const marks=doc?.marks||{};const crew=doc?.crew||{};
   const c=classify(pid,date,plan,marks,now);
   const myC=b?crew[b]:null;const myIn=myC&&myC.in;
   const inIds=Object.keys(crew).filter(id=>crew[id]&&crew[id].in).sort((x,y)=>crew[x].in.at-crew[y].in.at);
   if(myIn){const l=lateBy(pid,date,b,crew);
     const br=onBreak(myC);
-    hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),myC.out?` · смена закрыта ${tm(myIn.at)}–${tm(myC.out.at)}`:br?` · отход с ${tm(br.out.at)}, прошло ${fmtDur((now-br.out.at)/6e4)}`:` · вы пришли в ${tm(myIn.at)}`+(l?` · опоздание ${fmtDur(l)}`:'')));}
+    hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),myC.out?` · смена закрыта ${tm(myIn.at)}–${tm(myC.out.at)}`:br?` · отход с ${tm(br.out.at)}, прошло ${fmtDur((now-br.out.at)/6e4)}`:` · вы пришли в ${tm(myIn.at)}`+(myC.as==='cashier'?' · сегодня кассир':'')+(l?` · опоздание ${fmtDur(l)}`:'')));}
   else hero.append(h('p',{class:'me-line'},h('b',{text:shortP(pName(pid))}),inIds.length?' · пришли: '+inIds.map(id=>bName(id)+' '+tm(crew[id].in.at)).join(', '):' · приход ещё никто не отметил'));
   const acts=h('div',{class:'hero-acts'});
   if(b&&S.busy['ck'+pid])acts.append(h('button',{class:'btn gold grow',disabled:true},h('span',{class:'spin'}),h('span',{text:'Загружаю селфи…'})));
@@ -1210,7 +1223,7 @@ function staffSheet(b,docs,key){
     const mine=plan.filter(it=>marks[it.k]&&marks[it.k].b===b);if(!(c&&c.in)&&!mine.length)continue;shifts++;
     let l=0;if(c&&c.in){l=lateBy(d.point,d.date,b,crew);if(l){lateN++;lateMin+=l;}}
     hours+=payHours(d,c)||0;
-    const past=d.date<S.today;const miss=plan.filter(i=>(i.role||'barista')===roleOf(b)&&!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
+    const past=d.date<S.today;const miss=plan.filter(i=>(i.role||'barista')===posOf(b,c)&&!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
     let bk=0;for(const it of mine){const m=marks[it.k];if(m.late)lateMarks++;if(isBackfill(marks,it,m)){back++;bk++;}}
     rows.push({d,c,l,miss,bk});}
   const kv=(n,t,bad)=>h('div',{class:'kbox'+(bad?' bad':'')},h('b',{text:String(n)}),h('span',{text:t}));
@@ -1341,7 +1354,7 @@ function arrivals(pid,doc,plan,marks){
   const ph=plan.filter(i=>i.blk==='open'&&marks[i.k]&&(marks[i.k].photo||marks[i.k].video));
   return h('div',{class:'arr'},
     arr.length?arr.map(([b,c])=>{const l=lateBy(pid,VD(),b,crew);
-      return h('span',{class:'arr-i'},c.in.photo?h('img',{class:'av',src:blobUrl(c.in.photo),alt:''}):h('span',{class:'av none',text:'—'}),h('span',{text:bName(b)+(isWorker(b)?'':' ('+(S.staff[b]?.title||ROLE[roleOf(b)])+')')+' · '+tm(c.in.at)}),
+      return h('span',{class:'arr-i'},c.in.photo?h('img',{class:'av',src:blobUrl(c.in.photo),alt:''}):h('span',{class:'av none',text:'—'}),h('span',{text:bName(b)+(isWorker(b)?(c.as==='cashier'?' (за кассира)':''):' ('+(S.staff[b]?.title||ROLE[roleOf(b)])+')')+' · '+tm(c.in.at)}),
         l?h('span',{class:'chip danger',text:'опоздание '+fmtDur(l)}):isSub(pid,c,VD())?h('span',{class:'chip gold',text:'на замену'}):h('span',{class:'chip ok',text:'вовремя'}),onBreak(c)?h('span',{class:'chip warn',text:'отход с '+tm(onBreak(c).out.at)}):null,c.out?h('span',{class:'chip',text:'ушёл '+tm(c.out.at)}):null);})
       :h('span',{class:'dim small',text:vnow()<t.open?'Открытие в '+tm(t.open)+'. Приходов пока нет.':'Приход ещё никто не отметил'}),
     ph.length?h('div',{class:'oph'},ph.map(i=>h('figure',{},marks[i.k].video?h('span',{class:'vt',html:PLAY}):h('img',{src:blobUrl(marks[i.k].photo),alt:i.t,loading:'lazy'}),h('figcaption',{text:(i.kind==='video'?'Видео':shortTask(i))+' '+tm(marks[i.k].at)})))):null);
@@ -1425,10 +1438,11 @@ async function daySheet(pid,date){
 function tabelData(docs,key){
   const [y,m]=key.split('-').map(Number);const dim=new Date(y,m,0).getDate();const by={};const shifts=[];
   for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1))for(const [b,c] of Object.entries(d.crew||{})){if(!c||!c.in)continue;
-    const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0});const day=+d.date.slice(8);const hh=payHours(d,c);const open=!c.out&&d.date===S.today;
-    const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false});r.n++;
-    if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;}
-    shifts.push({d,b,c,hh,open});}
+    const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0,sum:0,noRate:0,hc:0});const day=+d.date.slice(8);const hh=payHours(d,c);const open=!c.out&&d.date===S.today;
+    const pos=posOf(b,c);const rate=rateOf(b,pos,d.date);const sum=hh!=null&&rate!=null?hh*rate:null;
+    const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false,cash:false});r.n++;if(pos==='cashier'&&roleOf(b)!=='cashier')cell.cash=true;
+    if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;if(pos==='cashier'&&roleOf(b)!=='cashier')r.hc+=hh;if(sum!=null)r.sum+=sum;else r.noRate++;}
+    shifts.push({d,b,c,hh,open,pos,rate,sum});}
   const ord={chef:0,barista:1,cashier:2,runner:3,manager:4,owner:5};
   const rows=Object.values(by).sort((a,b)=>(ord[roleOf(a.b)]??9)-(ord[roleOf(b.b)]??9)||bName(a.b).localeCompare(bName(b.b),'ru'));
   return{dim,rows,shifts};
@@ -1436,25 +1450,25 @@ function tabelData(docs,key){
 function tabelView(docs,key){
   const {dim,rows}=tabelData(docs,key);if(!rows.length)return empty('В этом месяце часов пока нет.');
   const ds=Array.from({length:dim},(_,i)=>i+1);const wd=d=>parseYmd(`${key}-${pad(d)}`).getDay();
-  const t=h('table',{class:'tabel'},h('thead',{},h('tr',{},h('th',{class:'nm',scope:'col',text:'Сотрудник'}),h('th',{class:'tot',scope:'col',text:'Итого'}),
+  const t=h('table',{class:'tabel'},h('thead',{},h('tr',{},h('th',{class:'nm',scope:'col',text:'Сотрудник'}),h('th',{class:'tot',scope:'col',text:'Часы'}),h('th',{class:'tot',scope:'col',text:'К оплате'}),
       ds.map(d=>h('th',{scope:'col',class:wd(d)===0||wd(d)===6?'wk':null,text:String(d)})))),
     h('tbody',{},rows.map(r=>h('tr',{},h('th',{class:'nm',scope:'row'},h('b',{text:bName(r.b)}),h('small',{text:ROLE[roleOf(r.b)]})),
-      h('td',{class:'tot',text:fmtH(r.total)}),
+      h('td',{class:'tot',text:fmtH(r.total)}),h('td',{class:'tot',title:r.noRate?'Нет ставки для части смен':null,text:r.sum?fmtT(r.sum)+(r.noRate?'*':''):'—'}),
       ds.map(d=>{const c=r.days[d];if(!c)return h('td',{class:wd(d)===0||wd(d)===6?'wk':null});
         if(c.miss&&!c.h)return h('td',{class:'miss',title:'Нет селфи ухода',text:'?'});
         if(c.open&&!c.h)return h('td',{class:'live',title:'Ещё на смене',text:'…'});
-        return h('td',{class:c.miss?'miss':null,text:fmtH(c.h)+(c.miss?'?':'')});})))));
+        return h('td',{class:(c.miss?'miss ':'')+(c.cash?'cash':''),title:c.cash?'Смена за кассира':null,text:fmtH(c.h)+(c.cash?'к':'')+(c.miss?'?':'')});})))));
   const miss=rows.reduce((n,r)=>n+r.miss,0);
   return h('div',{style:'display:grid;gap:8px'},h('div',{class:'tabel-wrap',tabindex:'0','aria-label':'Табель часов, прокрутите вбок'},t),
-    h('p',{class:'hint',text:`Часы — от селфи прихода до селфи ухода, но не раньше открытия и не позже ${S.cfg.payUntil||'23:00'}. Отход на сон не вычитается.`+(miss?` «?» — нет селфи ухода, такие смены не посчитаны (${miss}).`:'')}));
+    h('p',{class:'hint',text:`Часы — от селфи прихода (не раньше открытия) до ухода, не позже ${S.cfg.payUntil||'23:00'}.`+(S.cfg.payFull?` Кто ушёл в конце смены, тому смена засчитывается до ${S.cfg.payFull}: с 8:00 — 16 ч, с 9:00 — 15 ч.`:'')+` Отход на сон не вычитается. «к» — бариста вышел за кассира, эти часы по ставке кассира.`+(miss?` «?» — нет селфи ухода, такие смены не посчитаны (${miss}).`:'')+` Ставки — в «Настройки → Ставки и зарплата».`}));
 }
 async function exportTabel(key,docs){
   const {dim,rows,shifts}=tabelData(docs,key);const n=x=>x==null?'':(Math.round(x*100)/100).toString().replace('.',',');
-  const out=[['Табель часов · '+monTitle(key)],['Сотрудник','Роль',...Array.from({length:dim},(_,i)=>String(i+1)),'Итого часов','Смен','Без селфи ухода']];
-  for(const r of rows)out.push([bName(r.b),ROLE[roleOf(r.b)],...Array.from({length:dim},(_,i)=>{const c=r.days[i+1];return c?(c.h?n(c.h):'')+(c.miss?'?':''):'';}),n(r.total),r.n,r.miss]);
-  out.push([],['Смены подробно'],['Дата','Точка','Сотрудник','Роль','Приход','Уход','Отход','Часов в табель']);
-  for(const x of shifts)out.push([x.d.date,pName(x.d.point),bName(x.b),ROLE[roleOf(x.b)],tm(x.c.in.at),x.c.out?tm(x.c.out.at):(x.open?'на смене':'нет селфи'),
-    (x.c.brk||[]).map(k=>tm(k.out.at)+'–'+(k.in?tm(k.in.at):'?')).join(', '),n(x.hh)]);
+  const out=[['Табель часов · '+monTitle(key)],['Сотрудник','Роль',...Array.from({length:dim},(_,i)=>String(i+1)),'Итого часов','Из них за кассира','К оплате ₸','Смен','Без селфи ухода']];
+  for(const r of rows)out.push([bName(r.b),ROLE[roleOf(r.b)],...Array.from({length:dim},(_,i)=>{const c=r.days[i+1];return c?(c.h?n(c.h):'')+(c.cash?'к':'')+(c.miss?'?':''):'';}),n(r.total),n(r.hc),Math.round(r.sum),r.n,r.miss]);
+  out.push([],['Смены подробно'],['Дата','Точка','Сотрудник','Должность в смене','Приход','Уход','Отход','Часов в табель','Ставка ₸/ч','Сумма ₸']);
+  for(const x of shifts)out.push([x.d.date,pName(x.d.point),bName(x.b),ROLE[x.pos]+(x.pos!==roleOf(x.b)?' (замена)':''),tm(x.c.in.at),x.c.out?tm(x.c.out.at):(x.open?'на смене':'нет селфи'),
+    (x.c.brk||[]).map(k=>tm(k.out.at)+'–'+(k.in?tm(k.in.at):'?')).join(', '),n(x.hh),x.rate??'',x.sum!=null?Math.round(x.sum):'']);
   const csv='\ufeff'+out.map(r=>r.map(c=>{const s=String(c);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(';')).join('\r\n');
   if(!S.dl){toast('Скачивание недоступно в этом окне. Откройте трекер в браузере.');return;}
   try{await S.dl.save({filename:`altyncup-tabel-${key}.csv`,data:csv});toast('Табель сохранён');}catch(e){if(e&&e.code==='declined')return;toast('Не получилось сохранить файл.');}
@@ -1484,6 +1498,7 @@ const SET_SECS=[
   ['staff','Сотрудники и пароли',()=>{const v=Object.values(S.staff).filter(x=>x.active);return v.length+' человек · '+WORK_ROLES.map(r=>ROLE_PL[r]+' '+v.filter(x=>x.role===r).length).join(', ');}],
   ['tasks','Задачи смены',D=>D.tasks.filter(t=>!t.off).length+' активных · '+D.tasks.filter(t=>t.photo&&!t.off).length+' с фото'],
   ['norms','Нормы и расписание',D=>`Холодильник ${fmtN(D.tempMin)}–${fmtN(D.tempMax)} °C · пролив ${fmtN(D.pullMin)}–${fmtN(D.pullMax)} сек · обход каждые ${fmtN(D.interval)} ч`],
+  ['rates','Ставки и зарплата',D=>{const R=D.rates||{};return `Бариста ${R.barista||'—'} ₸/ч · кассир ${R.cashier||'—'} ₸/ч · новые ${R.new1||'—'}/${R.new2||'—'}`;}],
   ['award','Рейтинг и премия',D=>'Премия: '+(D.award?.prize||'—')+' · в рейтинге от '+(D.award?.minShifts||0)+' смен'],
   ['storage','Проверка и место для фото',()=>'Проверить, что отметки сохраняются']
 ];
@@ -1517,6 +1532,15 @@ const SET_BUILD={
     inputF('n-late','Опоздание — если первый пришёл позже открытия на, мин',D.lateMin??15,x=>D.lateMin=x,{inputmode:'numeric'}),
     chk('n-reqin','Без селфи прихода смена не идёт в рейтинг',!!D.requireCheckin,x=>D.requireCheckin=x),
     inputF('n-stock','Остатки при закрытии, через запятую',(D.stockItems||[]).join(', '),x=>D.stockItems=x.split(',').map(s=>s.trim()).filter(Boolean))),
+  rates:D=>{D.rates=D.rates||{};const R=D.rates;const num=(id,l,k)=>inputF(id,l,R[k]??'',x=>{const v=String(x).replace(/\s/g,'');R[k]=v===''?null:Number(v);},{inputmode:'numeric'});
+    return h('div',{class:'card mt'},h('p',{class:'hint',style:'margin-top:0',text:'Ставка за час. Сумма = часы в табеле × ставка той должности, на которую человек вышел в этот день.'}),
+      h('div',{class:'row2'},num('r-b','Бариста, ₸/ч','barista'),num('r-c','Кассир, ₸/ч','cashier')),
+      h('div',{class:'row2'},num('r-n1','Новый бариста, 1-й месяц','new1'),num('r-n2','Новый бариста, 2-й месяц','new2')),
+      h('p',{class:'hint',text:'С 3-го месяца — ставка бариста. Дату начала работы нового бариста укажите в «Сотрудники и пароли → Изменить». Без даты — обычная ставка бариста.'}),
+      h('div',{class:'row2'},num('r-r','Раннер, ₸/ч','runner'),num('r-ch','Шеф-бариста, ₸/ч','chef')),
+      num('r-m','Админ, ₸/ч','manager'),
+      inputF('r-full','Полная смена засчитывается до',D.payFull||'',x=>D.payFull=x||null,{type:'time'}),
+      h('p',{class:'hint',text:'Если человек ушёл не раньше чем за 15 минут до времени «часы в табель до», смена считается до этого времени. Например, до 00:00: с 8:00 — 16 ч, с 9:00 — 15 ч. Пусто — по фактическому уходу.'}));},
   award:D=>{D.award=D.award||{};return h('div',{class:'card mt'},
     h('div',{class:'row2'},inputF('a-prize','Премия',D.award.prize,x=>D.award.prize=x),inputF('a-min','В рейтинге от, смен',D.award.minShifts,x=>D.award.minShifts=x,{inputmode:'numeric'})),
     h('p',{class:'hint',text:'Бариста видят рейтинг и своё место, но не премию. Баллы за смену: задача вовремя +10, с опозданием +5 — честно и для тех, кто работает реже.'}));},
@@ -1623,7 +1647,7 @@ async function saveSet(){
   D.lateMin=Math.max(0,parseInt(D.lateMin,10)||0);
   D.revisionDay=Math.min(31,Math.max(1,parseInt(D.revisionDay,10)||30));
   D.award=D.award||{};D.award.minShifts=Math.max(0,parseInt(D.award.minShifts,10)||0);
-  if(!/^\d{2}:\d{2}$/.test(D.payUntil||''))D.payUntil='23:00';if(D.closeStart&&!/^\d{2}:\d{2}$/.test(D.closeStart))delete D.closeStart;
+  if(!/^\d{2}:\d{2}$/.test(D.payUntil||''))D.payUntil='23:00';if(D.closeStart&&!/^\d{2}:\d{2}$/.test(D.closeStart))delete D.closeStart;if(D.payFull&&!/^\d{2}:\d{2}$/.test(D.payFull))delete D.payFull;if(S.cfg.hired)D.hired=S.cfg.hired;
   D.tasks=D.tasks.filter(t=>t.title.trim());
   try{
     await enqueue('cfg/main',()=>S.db.doc('cfg/main').set(D));
@@ -1646,7 +1670,7 @@ const live={},chans={},bumpT={};
 function onTable(t,fn){(live[t]=live[t]||new Set()).add(fn);if(!chans[t]&&sb)chans[t]=sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>bump(t)).subscribe();return()=>live[t].delete(fn);}
 function bump(t){clearTimeout(bumpT[t]);bumpT[t]=setTimeout(()=>{(live[t]||[]).forEach(f=>f());},200);}
 function refreshAll(){Object.keys(live).forEach(bump);}
-const RPC_TBL={crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_update2:'staff',staff_set_pw:'staff'};
+const RPC_TBL={crew_in:'days',crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_update2:'staff',staff_set_pw:'staff'};
 async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw dbErr(error);
   const t=RPC_TBL[fn]||(args&&args.tbl);if(t)bump(t);return data;}
 const mkSnap=row=>({id:row?row.id:null,exists:!!row,data:()=>row?row.data:undefined,metadata:{}});
@@ -1700,6 +1724,8 @@ async function loadPw(){if(!S.isOwner)return;const {data}=await sb.from('staff_p
 const isOwnerOrMgr=()=>isMgr();
 const roleOf=b=>(S.staff[b]&&S.staff[b].role)||'barista';
 const myRole=()=>{const r=S.me&&S.me.role;return WORK_ROLES.includes(r)?r:'barista';};
+const dayRole=pid=>S.days[pid]?.crew?.[me()]?.as||myRole();
+const posOf=(b,c)=>(c&&c.as)||roleOf(b);
 
 /* ---------- вход ---------- */
 async function loadLoginList(){try{const {data,error}=await sb.rpc('login_list');if(error)throw error;S.loginList=data||[];}catch(e){S.loginList=null;S.loginErr='Нет связи с сервером. Проверьте интернет и обновите страницу.';}}
@@ -1771,7 +1797,9 @@ function staffSection(){
 function staffEdit(x){
   const d={name:x.name,role:x.role,active:x.active,point:x.point||'',title:x.title||''};const err=h('p',{class:'err',role:'alert'});
   const save=async()=>{d.name=document.getElementById('se-name').value.trim();if(!d.name){err.textContent='Введите имя';return;}
-    try{d.title=document.getElementById('se-title').value.trim();await rpc('staff_update2',{p_login:x.login,p_name:d.name,p_role:d.role,p_active:d.active,p_point:d.point,p_title:d.title});await loadStaff();closeSheet();rebuildSet();toast('Сохранено');}
+    try{d.title=document.getElementById('se-title').value.trim();await rpc('staff_update2',{p_login:x.login,p_name:d.name,p_role:d.role,p_active:d.active,p_point:d.point,p_title:d.title});
+      {const hd=document.getElementById('se-hired').value||null;if(hd!==(S.cfg.hired?.[x.login]||null)){await rpc('doc_merge',{tbl:'cfg',p_id:'main',p_patch:{hired:{[x.login]:hd}}});S.cfg.hired={...(S.cfg.hired||{}),[x.login]:hd};}}
+      await loadStaff();closeSheet();rebuildSet();toast('Сохранено');}
     catch(e){err.textContent=e.code==='self_lock'?'Нельзя убрать права владельца у самого себя.':'Не получилось: '+(e.message||e.code);}};
   const newPw=async()=>{const pw=genPw(d.name||x.name);try{await rpc('staff_set_pw',{p_login:x.login,p_pw:pw});await loadPw();closeSheet();toast(`Новый пароль ${x.name}: ${pw}`);}catch(e){err.textContent='Не получилось: '+(e.message||e.code);}};
   openSheet(x.name,[h('div',{class:'field'},h('label',{for:'se-name',text:'Имя'}),h('input',{id:'se-name',type:'text',value:x.name})),
@@ -1779,6 +1807,7 @@ function staffEdit(x){
     h('div',{class:'field'},h('label',{for:'se-title',text:'Подпись (необязательно)'}),h('input',{id:'se-title',type:'text',value:d.title,placeholder:'Например: Админ Кулманова, Шеф-бариста'})),
     sel('se-point','Точка',[['','Любая точка'],...S.cfg.points.map(p=>[p.id,'Только '+shortP(p.name)])],d.point,v=>d.point=v),
     chk('se-act','Работает',d.active,v=>d.active=v),
+    h('div',{class:'field'},h('label',{for:'se-hired',text:'Дата начала работы (для ставки нового бариста)'}),h('input',{id:'se-hired',type:'date',value:S.cfg.hired?.[x.login]||'',max:S.today})),
     h('p',{class:'hint',text:'Пароль сейчас: '+(S.pw?.[x.login]||'—')+'. Новый пароль сразу отключит старый.'}),err,
     h('div',{class:'btnrow'},h('button',{class:'btn ghost',onclick:newPw},'Новый пароль'),h('button',{class:'btn gold',onclick:save},'Сохранить'))]);
 }
@@ -1877,7 +1906,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-09a';let updT=0;
+const BUILD='2026-11-09b';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
