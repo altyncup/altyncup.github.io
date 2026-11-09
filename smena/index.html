@@ -584,8 +584,10 @@ function lateBy(pid,date,b,crew){
   const c=crew&&crew[b];if(!c||!c.in||roleOf(b)==='owner')return 0;
   const d=Math.round((c.in.at-pointTimes(pid,date).open)/6e4);if(d>SUB_MIN)return 0;return d>Number(S.cfg.lateMin??15)?d:0;
 }
-function payHours(d,c){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
-  let cap=toMin(S.cfg.payUntil||'23:00');if(base+cap*6e4<=t.open)cap+=1440;
+function payHours(d,c,b){if(!c||!c.in||!c.out)return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
+  const runner=b&&posOf(b,c)==='runner';
+  let cap=toMin(runner?(S.cfg.runnerEnd||'22:00'):(S.cfg.payUntil||'23:00'));if(base+cap*6e4<=t.open)cap+=1440;
+  if(runner){let end=Math.min(c.out.at,base+cap*6e4);if(c.out.at>=base+cap*6e4-15*6e4)end=base+cap*6e4;return Math.max(0,end-Math.max(c.in.at,t.open))/36e5;}
   let end=Math.min(c.out.at,base+cap*6e4,t.close);const st=Math.max(c.in.at,t.open);
   if(S.cfg.payFull&&c.out.at>=base+cap*6e4-15*6e4){let f=toMin(S.cfg.payFull);if(base+f*6e4<=t.open)f+=1440;end=Math.max(end,base+f*6e4);}
   return Math.max(0,end-st)/36e5;}
@@ -593,6 +595,11 @@ function monthsSince(from,date){const [y1,m1,d1]=from.split('-').map(Number),[y2
 function rateOf(b,pos,date){const R=S.cfg.rates||{};
   if(pos==='barista'){const hd=S.cfg.hired?.[b];if(hd){const n=monthsSince(hd,date);if(n<1&&R.new1)return +R.new1;if(n<2&&R.new2)return +R.new2;}return R.barista!=null&&R.barista!==''?+R.barista:null;}
   return R[pos]!=null&&R[pos]!==''?+R[pos]:null;}
+function shiftPay(d,b,c,hh,pos){const R=S.cfg.rates||{};if(hh==null)return null;
+  if(pos==='runner'){if(R.runnerShift==null||R.runnerShift==='')return null;const t=pointTimes(d.point,d.date);const base=parseYmd(d.date).getTime();
+    let cap=toMin(S.cfg.runnerEnd||'22:00');if(base+cap*6e4<=t.open)cap+=1440;const full=(base+cap*6e4-t.open)/36e5;return +R.runnerShift*Math.min(1,full>0?hh/full:1);}
+  const r=rateOf(b,pos,d.date);return r==null?null:hh*r;}
+const FIXED=['manager','chef','owner'];
 const fmtT=x=>x==null?'—':Math.round(x).toLocaleString('ru-RU')+' ₸';
 const onBreak=c=>{const b=c&&c.brk;const x=b&&b.length?b[b.length-1]:null;return x&&x.out&&!x.in?x:null;};
 const fmtH=x=>x==null?'—':(Math.round(x*100)/100).toString().replace('.',',');
@@ -609,7 +616,7 @@ function monthStats(docs){
   for(const d of docs){
     const plan=d.plan||[],marks=d.marks||{};const sc=dayScore(plan,marks);const crew=d.crew||{};
     const okIn=b=>!reqIn||!!(crew[b]&&crew[b].in);
-    for(const [b,c] of Object.entries(crew))get(b).hours+=payHours(d,c)||0;
+    for(const [b,c] of Object.entries(crew))get(b).hours+=payHours(d,c,b)||0;
     const clean=sc.req>0&&sc.done===sc.req&&sc.late===0;
     const people=new Set(Object.keys(crew).filter(okIn));
     for(const it of plan){const m=marks[it.k];if(!m||!m.b||!okIn(m.b))continue;people.add(m.b);const r=get(m.b);if(m.late){r.xp+=5;r.late++;}else{r.xp+=10;r.onTime++;}}
@@ -677,7 +684,7 @@ async function doCheck(pid,kind,file,as){
     const v=await enqueue(path,()=>kind==='in'?rpc('crew_in',{p_day:path.split('/')[1],p_photo:id,p_nv:FRESH[id]===false,p_as:as||null}):rpc('crew_check',{p_day:path.split('/')[1],p_kind:kind,p_photo:id,p_nv:FRESH[id]===false}));const at=v.at;
     if(kind==='in'){const crew={...(S.days[pid]?.crew||{}),[b]:{...cur,in:v}};const l=lateBy(pid,S.today,b,crew);
       toast((l?`Приход отмечен в ${tm(at)}. Опоздание ${fmtDur(l)}.`:`Приход отмечен в ${tm(at)}. Хорошей смены, ${bName(b)}!`)+(as==='cashier'?' Сегодня вы — кассир.':''));}
-    else{const hh=payHours({point:pid,date:S.today},{...cur,out:v});toast(`Уход в ${tm(at)}`+(hh!=null?` · в табель ${fmtH(hh)} ч`:'')+'. Спасибо за смену!');}
+    else{const hh=payHours({point:pid,date:S.today},{...cur,out:v},b);toast(`Уход в ${tm(at)}`+(hh!=null?` · в табель ${fmtH(hh)} ч`:'')+'. Спасибо за смену!');}
   }catch(e){failToast(e);}finally{delete S.busy['ck'+pid];schedule();}
 }
 function checkIn(pid){if(!me()){pickSheet();return;}
@@ -1222,7 +1229,7 @@ function staffSheet(b,docs,key){
     const crew=d.crew||{},marks=d.marks||{},plan=d.plan||[];const c=crew[b];
     const mine=plan.filter(it=>marks[it.k]&&marks[it.k].b===b);if(!(c&&c.in)&&!mine.length)continue;shifts++;
     let l=0;if(c&&c.in){l=lateBy(d.point,d.date,b,crew);if(l){lateN++;lateMin+=l;}}
-    hours+=payHours(d,c)||0;
+    hours+=payHours(d,c,b)||0;
     const past=d.date<S.today;const miss=plan.filter(i=>(i.role||'barista')===posOf(b,c)&&!i.opt&&!marks[i.k]&&(past||S.now>i.dl)&&(!(c&&c.in)||onDuty(crew,c,i))).length;missed+=miss;
     let bk=0;for(const it of mine){const m=marks[it.k];if(m.late)lateMarks++;if(isBackfill(marks,it,m)){back++;bk++;}}
     rows.push({d,c,l,miss,bk});}
@@ -1372,7 +1379,7 @@ function chronicle(pid){
     if(c.in){const l=lateBy(pid,VD(),b,crew);ev.push({at:c.in.at,round:true,photo:c.in.photo,title:'Приход · '+bName(b),chips:[l?['danger','опоздание '+fmtDur(l)]:isSub(pid,c,VD())?['gold','на замену']:['ok','вовремя'],...aiChips(c.in)],cap:'Приход · '+bName(b)});}
     for(const x of c.brk||[]){if(x.out)ev.push({at:x.out.at,photo:x.out.photo,title:'Отход · '+bName(b),chips:[x.in?null:['warn','отдыхает'],x.out.nv?['warn','без метки камеры']:null].filter(Boolean),cap:'Отход · '+bName(b)});
       if(x.in)ev.push({at:x.in.at,photo:x.in.photo,title:'Пришёл после отхода · '+bName(b),chips:[[x.in.at-x.out.at>70*6e4?'warn':'ok','отдых '+fmtDur((x.in.at-x.out.at)/6e4)]],cap:'Пришёл · '+bName(b)});}
-    if(c.out){const hh=payHours({point:pid,date:VD()},c);ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[hh!=null?['','в табель '+fmtH(hh)+' ч']:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}}
+    if(c.out){const hh=payHours({point:pid,date:VD()},c,b);ev.push({at:c.out.at,round:true,photo:c.out.photo,title:'Уход · '+bName(b),chips:[hh!=null?['','в табель '+fmtH(hh)+' ч']:null,...aiChips(c.out)].filter(Boolean),cap:'Уход · '+bName(b)});}}
   for(const it of plan){const m=marks[it.k];
     if(m)ev.push({at:m.at,photo:m.photo,video:m.video,it,m,title:it.t+(it.slot&&!it.spot?' · '+it.slot:''),sub:bName(m.b),chips:[m.late?['warn','с опозданием']:null,valText(it,m)?[m.bad?'danger':'ok',valText(it,m)]:null,...aiChips(m)].filter(Boolean)});
     else if(!it.opt&&vnow()>it.dl)ev.push({at:it.dl,miss:true,title:it.t+(it.slot&&!it.spot?' · '+it.slot:''),chips:[['danger','не сделано к '+tm(it.dl)]]});}
@@ -1420,7 +1427,7 @@ async function daySheet(pid,date){
     {const cw=doc?.crew||{};const ids=crew.filter(x=>cw[x]&&cw[x].in).sort((a,b)=>cw[a].in.at-cw[b].in.at);
       if(!ids.length)kids.push(h('p',{class:'hint',text:'Селфи прихода в этот день нет'}));
       else{kids.push(h('div',{class:'lbl',text:'Приход, отход и уход — нажмите на фото'}));
-        kids.push(h('div',{class:'list'},ids.map(b=>{const c=cw[b];const hh=payHours({point:p,date},c);const l=lateBy(p,date,b,cw);
+        kids.push(h('div',{class:'list'},ids.map(b=>{const c=cw[b];const hh=payHours({point:p,date},c,b);const l=lateBy(p,date,b,cw);
           const ph=(x,cap,round)=>x&&x.photo?h('button',{class:'cimg'+(round?' round':''),'aria-label':cap+' · '+bName(b)+', '+tm(x.at),onclick:()=>viewId(x.photo,cap+' · '+bName(b),`${pName(p)} · ${fmtDay(date)}, ${tm(x.at)}${x.nv?' · без метки камеры':''}`)},lazyImg(x.photo)):null;
           const shots=[ph(c.in,'Приход',true)];for(const x of c.brk||[]){shots.push(ph(x.out,'Отход'));shots.push(ph(x.in,'Пришёл после отхода'));}shots.push(ph(c.out,'Уход',true));
           const br=(c.brk||[]).map(x=>x.in?`отход ${tm(x.out.at)}–${tm(x.in.at)}`:`отход с ${tm(x.out.at)}`);
@@ -1438,10 +1445,10 @@ async function daySheet(pid,date){
 function tabelData(docs,key){
   const [y,m]=key.split('-').map(Number);const dim=new Date(y,m,0).getDate();const by={};const shifts=[];
   for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1))for(const [b,c] of Object.entries(d.crew||{})){if(!c||!c.in)continue;
-    const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0,sum:0,noRate:0,hc:0});const day=+d.date.slice(8);const hh=payHours(d,c);const open=!c.out&&d.date===S.today;
-    const pos=posOf(b,c);const rate=rateOf(b,pos,d.date);const sum=hh!=null&&rate!=null?hh*rate:null;
+    const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0,sum:0,noRate:0,hc:0});const day=+d.date.slice(8);const hh=payHours(d,c,b);const open=!c.out&&d.date===S.today;
+    const pos=posOf(b,c);const rate=pos==='runner'?null:rateOf(b,pos,d.date);const sum=FIXED.includes(pos)?null:shiftPay(d,b,c,hh,pos);
     const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false,cash:false});r.n++;if(pos==='cashier'&&roleOf(b)!=='cashier')cell.cash=true;
-    if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;if(pos==='cashier'&&roleOf(b)!=='cashier')r.hc+=hh;if(sum!=null)r.sum+=sum;else r.noRate++;}
+    if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;if(pos==='cashier'&&roleOf(b)!=='cashier')r.hc+=hh;if(sum!=null)r.sum+=sum;else if(!FIXED.includes(pos))r.noRate++;}
     shifts.push({d,b,c,hh,open,pos,rate,sum});}
   const ord={chef:0,barista:1,cashier:2,runner:3,manager:4,owner:5};
   const rows=Object.values(by).sort((a,b)=>(ord[roleOf(a.b)]??9)-(ord[roleOf(b.b)]??9)||bName(a.b).localeCompare(bName(b.b),'ru'));
@@ -1453,7 +1460,7 @@ function tabelView(docs,key){
   const t=h('table',{class:'tabel'},h('thead',{},h('tr',{},h('th',{class:'nm',scope:'col',text:'Сотрудник'}),h('th',{class:'tot',scope:'col',text:'Часы'}),h('th',{class:'tot',scope:'col',text:'К оплате'}),
       ds.map(d=>h('th',{scope:'col',class:wd(d)===0||wd(d)===6?'wk':null,text:String(d)})))),
     h('tbody',{},rows.map(r=>h('tr',{},h('th',{class:'nm',scope:'row'},h('b',{text:bName(r.b)}),h('small',{text:ROLE[roleOf(r.b)]})),
-      h('td',{class:'tot',text:fmtH(r.total)}),h('td',{class:'tot',title:r.noRate?'Нет ставки для части смен':null,text:r.sum?fmtT(r.sum)+(r.noRate?'*':''):'—'}),
+      h('td',{class:'tot',text:fmtH(r.total)}),h('td',{class:'tot',title:r.noRate?'Нет ставки для части смен':null,text:FIXED.includes(roleOf(r.b))?'фикс':r.sum?fmtT(r.sum)+(r.noRate?'*':''):'—'}),
       ds.map(d=>{const c=r.days[d];if(!c)return h('td',{class:wd(d)===0||wd(d)===6?'wk':null});
         if(c.miss&&!c.h)return h('td',{class:'miss',title:'Нет селфи ухода',text:'?'});
         if(c.open&&!c.h)return h('td',{class:'live',title:'Ещё на смене',text:'…'});
@@ -1465,10 +1472,10 @@ function tabelView(docs,key){
 async function exportTabel(key,docs){
   const {dim,rows,shifts}=tabelData(docs,key);const n=x=>x==null?'':(Math.round(x*100)/100).toString().replace('.',',');
   const out=[['Табель часов · '+monTitle(key)],['Сотрудник','Роль',...Array.from({length:dim},(_,i)=>String(i+1)),'Итого часов','Из них за кассира','К оплате ₸','Смен','Без селфи ухода']];
-  for(const r of rows)out.push([bName(r.b),ROLE[roleOf(r.b)],...Array.from({length:dim},(_,i)=>{const c=r.days[i+1];return c?(c.h?n(c.h):'')+(c.cash?'к':'')+(c.miss?'?':''):'';}),n(r.total),n(r.hc),Math.round(r.sum),r.n,r.miss]);
+  for(const r of rows)out.push([bName(r.b),ROLE[roleOf(r.b)],...Array.from({length:dim},(_,i)=>{const c=r.days[i+1];return c?(c.h?n(c.h):'')+(c.cash?'к':'')+(c.miss?'?':''):'';}),n(r.total),n(r.hc),FIXED.includes(roleOf(r.b))?'фикс':Math.round(r.sum),r.n,r.miss]);
   out.push([],['Смены подробно'],['Дата','Точка','Сотрудник','Должность в смене','Приход','Уход','Отход','Часов в табель','Ставка ₸/ч','Сумма ₸']);
   for(const x of shifts)out.push([x.d.date,pName(x.d.point),bName(x.b),ROLE[x.pos]+(x.pos!==roleOf(x.b)?' (замена)':''),tm(x.c.in.at),x.c.out?tm(x.c.out.at):(x.open?'на смене':'нет селфи'),
-    (x.c.brk||[]).map(k=>tm(k.out.at)+'–'+(k.in?tm(k.in.at):'?')).join(', '),n(x.hh),x.rate??'',x.sum!=null?Math.round(x.sum):'']);
+    (x.c.brk||[]).map(k=>tm(k.out.at)+'–'+(k.in?tm(k.in.at):'?')).join(', '),n(x.hh),x.pos==='runner'?'за смену':FIXED.includes(x.pos)?'фикс':(x.rate??''),x.sum!=null?Math.round(x.sum):'']);
   const csv='\ufeff'+out.map(r=>r.map(c=>{const s=String(c);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(';')).join('\r\n');
   if(!S.dl){toast('Скачивание недоступно в этом окне. Откройте трекер в браузере.');return;}
   try{await S.dl.save({filename:`altyncup-tabel-${key}.csv`,data:csv});toast('Табель сохранён');}catch(e){if(e&&e.code==='declined')return;toast('Не получилось сохранить файл.');}
@@ -1477,7 +1484,7 @@ async function exportCsv(key,docs){
   const rows=[['Дата','Точка','Блок','Задача','Окно','Срок','Статус','Время отметки','Бариста','Значение','Фото']];
   for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1)){
     for(const [b,c] of Object.entries(d.crew||{})){if(!c||(!c.in&&!c.out))continue;const l=c.in?lateBy(d.point,d.date,b,d.crew):0;
-      rows.push([d.date,pName(d.point),'Смена','Приход и уход','',tm(pointTimes(d.point,d.date).open),c.in?(l?'опоздание '+fmtDur(l):'вовремя'):'нет селфи прихода',(c.in?tm(c.in.at):'')+(c.out?'–'+tm(c.out.at):''),bName(b),c.in&&c.out?'часов в табель: '+fmtH(payHours(d,c)):'',c.in&&c.in.photo?'да':'']);}
+      rows.push([d.date,pName(d.point),'Смена','Приход и уход','',tm(pointTimes(d.point,d.date).open),c.in?(l?'опоздание '+fmtDur(l):'вовремя'):'нет селфи прихода',(c.in?tm(c.in.at):'')+(c.out?'–'+tm(c.out.at):''),bName(b),c.in&&c.out?'часов в табель: '+fmtH(payHours(d,c,b)):'',c.in&&c.in.photo?'да':'']);}
     for(const it of d.plan||[]){const m=d.marks&&d.marks[it.k];
       rows.push([d.date,pName(d.point),BLK[it.blk],it.t,it.slot||'',tm(it.dl),m?(m.late?'с опозданием':'вовремя'):(it.opt?'по желанию':'не сделано'),m?tm(m.at):'',m?bName(m.b):'',m?valText(it,m):'',m&&m.photo?'да':'']);}
   }
@@ -1498,7 +1505,7 @@ const SET_SECS=[
   ['staff','Сотрудники и пароли',()=>{const v=Object.values(S.staff).filter(x=>x.active);return v.length+' человек · '+WORK_ROLES.map(r=>ROLE_PL[r]+' '+v.filter(x=>x.role===r).length).join(', ');}],
   ['tasks','Задачи смены',D=>D.tasks.filter(t=>!t.off).length+' активных · '+D.tasks.filter(t=>t.photo&&!t.off).length+' с фото'],
   ['norms','Нормы и расписание',D=>`Холодильник ${fmtN(D.tempMin)}–${fmtN(D.tempMax)} °C · пролив ${fmtN(D.pullMin)}–${fmtN(D.pullMax)} сек · обход каждые ${fmtN(D.interval)} ч`],
-  ['rates','Ставки и зарплата',D=>{const R=D.rates||{};return `Бариста ${R.barista||'—'} ₸/ч · кассир ${R.cashier||'—'} ₸/ч · новые ${R.new1||'—'}/${R.new2||'—'}`;}],
+  ['rates','Ставки и зарплата',D=>{const R=D.rates||{};return `Бариста ${R.barista||'—'} ₸/ч · кассир ${R.cashier||'—'} ₸/ч · раннер ${R.runnerShift||'—'} ₸/смена`;}],
   ['award','Рейтинг и премия',D=>'Премия: '+(D.award?.prize||'—')+' · в рейтинге от '+(D.award?.minShifts||0)+' смен'],
   ['storage','Проверка и место для фото',()=>'Проверить, что отметки сохраняются']
 ];
@@ -1537,8 +1544,8 @@ const SET_BUILD={
       h('div',{class:'row2'},num('r-b','Бариста, ₸/ч','barista'),num('r-c','Кассир, ₸/ч','cashier')),
       h('div',{class:'row2'},num('r-n1','Новый бариста, 1-й месяц','new1'),num('r-n2','Новый бариста, 2-й месяц','new2')),
       h('p',{class:'hint',text:'С 3-го месяца — ставка бариста. Дату начала работы нового бариста укажите в «Сотрудники и пароли → Изменить». Без даты — обычная ставка бариста.'}),
-      h('div',{class:'row2'},num('r-r','Раннер, ₸/ч','runner'),num('r-ch','Шеф-бариста, ₸/ч','chef')),
-      num('r-m','Админ, ₸/ч','manager'),
+      h('div',{class:'row2'},num('r-r','Раннер, ₸ за смену','runnerShift'),inputF('r-re','Смена раннера до',D.runnerEnd||'22:00',x=>D.runnerEnd=x||'22:00',{type:'time'})),
+      h('p',{class:'hint',text:'Раннер: полная смена с открытия до этого времени — вся сумма. Ушёл раньше или пришёл позже — пропорционально часам. Шеф-бариста и админы на фиксе — в табеле только часы.'}),
       inputF('r-full','Полная смена засчитывается до',D.payFull||'',x=>D.payFull=x||null,{type:'time'}),
       h('p',{class:'hint',text:'Если человек ушёл не раньше чем за 15 минут до времени «часы в табель до», смена считается до этого времени. Например, до 00:00: с 8:00 — 16 ч, с 9:00 — 15 ч. Пусто — по фактическому уходу.'}));},
   award:D=>{D.award=D.award||{};return h('div',{class:'card mt'},
@@ -1906,7 +1913,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-09b';let updT=0;
+const BUILD='2026-11-09c';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
