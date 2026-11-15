@@ -523,7 +523,7 @@ function buildPlan(cfg,pid,date){
     if(t.off)continue;
     if(Array.isArray(t.points)&&t.points.length&&!t.points.includes(pid))continue;
     const freq=t.freq||'daily';
-    if(freq==='handover')continue;
+    if(freq==='handover'||freq==='handover6')continue;
     if(freq==='weekly'&&d.getDay()!==Number(cfg.weeklyDay))continue;
     if(freq==='monthly'&&d.getDate()!==Math.min(Number(cfg.revisionDay)||30,dim))continue;
     const base={t:t.title,kind:t.kind||'check',photo:!!t.photo&&['check','pull'].includes(t.kind||'check'),opt:!!t.opt,freq};
@@ -961,6 +961,7 @@ function taskRow(it,m,ctx){
   if(!m&&it.hint&&can)meta.append(h('span',{class:'t-hint',text:'В кадре: '+it.hint}));
   if(it.freq==='weekly')meta.append(h('span',{class:'chip',text:'раз в неделю'}));
   if(it.freq==='handover')meta.append(h('span',{class:'chip gold',text:'передача смены'}));
+  if(it.freq==='handover6')meta.append(h('span',{class:'chip',text:'раз в 6 смен · желательно'}));
   if(it.freq==='monthly')meta.append(h('span',{class:'chip',text:'ревизия'}));
   if(it.opt&&!m)meta.append(h('span',{class:'chip',text:'по желанию'}));
   const cls='task'+(m?' is-done':'')+(ctx.late&&!m&&hard?' is-late':'')+(onclick?' act':'');
@@ -1523,7 +1524,7 @@ const SET_BUILD={
     const aside={open:'срок — открытие',during:'по времени задачи',close:'открываются с '+(D.closeStart||'закрытия − 1,5 ч')+', срок — закрытие + 30 мин'};
     for(const blk of ['open','during','close']){const items=D.tasks.filter(x=>x.block===blk&&(x.role||'barista')===S.taskRole);
       box.append(section(BLK[blk]+(blk==='during'?` · каждые ${fmtN(D.interval)} ч`:''),aside[blk],h('div',{class:'list'},items.length?items.map(t=>h('button',{class:'mrow'+(t.off?' off':''),onclick:()=>taskSheet(t)},
-        h('span',{class:'m-t'},h('b',{text:t.title}),h('span',{text:[KINDS[t.kind||'check'],t.photo?'нужно фото':null,t.freq==='weekly'?'раз в неделю':t.freq==='monthly'?'в день ревизии':t.freq==='handover'?'при передаче смены':null,t.points&&t.points.length?'только '+t.points.map(id=>shortP(pName(id))).join(', '):null,t.items&&t.items.length?t.items.length+' пунктов':null,t.times&&t.times.length?'в '+t.times.join(', '):null,t.due?(t.block==='during'?'до ':'свой срок ')+t.due:null,t.opt?'по желанию':null,t.off?'выключена':null].filter(Boolean).join(' · ')})),
+        h('span',{class:'m-t'},h('b',{text:t.title}),h('span',{text:[KINDS[t.kind||'check'],t.photo?'нужно фото':null,t.freq==='weekly'?'раз в неделю':t.freq==='monthly'?'в день ревизии':t.freq==='handover'?'при передаче смены':t.freq==='handover6'?'при передаче, раз в 6 смен':null,t.points&&t.points.length?'только '+t.points.map(id=>shortP(pName(id))).join(', '):null,t.items&&t.items.length?t.items.length+' пунктов':null,t.times&&t.times.length?'в '+t.times.join(', '):null,t.due?(t.block==='during'?'до ':'свой срок ')+t.due:null,t.opt?'по желанию':null,t.off?'выключена':null].filter(Boolean).join(' · ')})),
         h('span',{class:'chev',html:I.r}))):empty('Задач нет'))));}
     box.append(h('button',{class:'btn ghost block mt',style:'margin-top:16px',onclick:()=>taskSheet(null)},'Добавить задачу'));
     return box;},
@@ -1621,7 +1622,8 @@ function taskSheet(t){
         h('p',{class:'hint',text:'Окно для каждого времени: за 15 минут до и 30 минут после.'})));
       if(!x.times.length)k.push(h('div',{class:'field'},h('label',{for:'ts-due',text:'Или: сделать до'}),h('input',{id:'ts-due',type:'time',value:x.due||'',oninput:e=>{x.due=e.target.value||null;}})));}
     else k.push(h('div',{class:'field'},h('label',{for:'ts-due',text:'Свой срок — если не подходит общий'}),h('input',{id:'ts-due',type:'time',value:x.due||'',oninput:e=>{x.due=e.target.value||null;}})));
-    if(x.block!=='during')k.push(sel('ts-freq','Как часто',[['daily','Каждый день'],['handover','При передаче смены — 2-й день 2/2'],['weekly','Раз в неделю'],['monthly','В день ревизии']],x.freq||'daily',v=>{x.freq=v;draw();}));
+    if(x.block!=='during')k.push(sel('ts-freq','Как часто',[['daily','Каждый день'],['handover','При передаче смены — 2-й день 2/2'],['handover6','При передаче, раз в 6 смен (желательно)'],['weekly','Раз в неделю'],['monthly','В день ревизии']],x.freq||'daily',v=>{x.freq=v;draw();}));
+    if(x.freq==='handover6')k.push(h('p',{class:'hint',text:'Появится при передаче смены, если с прошлого раза на этой точке прошло 6 смен. Задача «по желанию» — в пропуски не идёт.'}));
     if(x.freq==='handover')k.push(h('p',{class:'hint',text:'Появится у бариста, который вышел второй день подряд, — в блоке закрытия, перед передачей смены.'}));
     if(S.draft.points.length>1){x.points=x.points||[];const all=!x.points.length;
       k.push(h('div',{class:'field'},h('span',{class:'lbl',text:'На каких точках'}),h('div',{class:'t-meta'},S.draft.points.map(pt=>chk('ts-pt-'+pt.id,shortP(pt.name),all||x.points.includes(pt.id),v=>{
@@ -1639,7 +1641,7 @@ function taskSheet(t){
     x.items=(x.items||[]).map(s=>String(s).trim()).filter(Boolean);if(!x.items.length||x.kind!=='check')delete x.items;
     if(!x.hint||!(x.photo||x.kind==='video'))delete x.hint;
     if(x.block==='during'){delete x.freq;if(!x.times||!x.times.length)delete x.times;else x.due=null;}else{delete x.times;if(!x.freq||x.freq==='daily')delete x.freq;}
-    if(!x.due)delete x.due;if(!x.off)delete x.off;if(!x.points||!x.points.length)delete x.points;if(x.freq==='handover')x.block='close';
+    if(!x.due)delete x.due;if(!x.off)delete x.off;if(!x.points||!x.points.length)delete x.points;if((x.freq==='handover'||x.freq==='handover6'))x.block='close';
     const D=S.draft;if(isNew)D.tasks.push(x);else{const i=D.tasks.findIndex(y=>y.id===t.id);D.tasks[i]=x;}
     closeSheet();rebuildSet();toast('Изменено. Нажмите «Сохранить настройки».');};
   kids.push(h('div',{class:'btnrow'},!isNew?h('button',{class:'btn danger',onclick:()=>{S.draft.tasks=S.draft.tasks.filter(y=>y.id!==t.id);closeSheet();rebuildSet();toast('Задача убрана. Нажмите «Сохранить настройки».');}},'Удалить'):null,
@@ -1913,7 +1915,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-09c';let updT=0;
+const BUILD='2026-11-15a';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
