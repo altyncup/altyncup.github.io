@@ -715,6 +715,10 @@ async function doBreak(pid,kind,file){
     else toast(`Пришёл в ${tm(v.at)}`+(prev?` · отдых ${fmtDur((v.at-prev.out.at)/6e4)}`:'')+'.');
   }catch(e){failToast(e);}finally{delete S.busy['bk'+pid];schedule();}
 }
+async function setAsCashier(pid,on){
+  try{const path=docPath(pid,S.today);await enqueue(path,()=>rpc('crew_as',{p_day:path.split('/')[1],p_as:on?'cashier':null}));
+    toast(on?'Отчёты кассира открыты — они в списке ниже.':'Отчёты кассира убраны.');}catch(e){failToast(e);}
+}
 function breakSheet(pid){
   openSheet('Отход на час',[h('p',{class:'hint',text:'Сфотографируйте часы или экран с временем — владелец увидит, во сколько вы ушли отдыхать. Через час нажмите «Пришёл» и снова сфотографируйте время. Отход — один раз за смену.'}),
     h('div',{class:'btnrow'},h('button',{class:'btn ghost',onclick:closeSheet},'Отмена'),
@@ -1151,7 +1155,7 @@ function viewNow(){
       :h('div',{class:'hero-acts'},cfg.points.filter(p=>!S.staff[b]?.point||S.staff[b].point===p.id).map(p=>h('button',{class:'btn gold grow',onclick:()=>checkIn(p.id),html:I.cam},h('span',{text:shortP(p.name)+' — я пришёл'})))));
     v.append(ratingCard());return v;
   }
-  const doc=S.days[pid];const plan=['manager','chef'].includes((S.me&&S.me.role)||roleOf(b))?[]:planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===dayRole(pid));const marks=doc?.marks||{};const crew=doc?.crew||{};
+  const doc=S.days[pid];const myR=(S.me&&S.me.role)||roleOf(b);const plan=myR==='chef'||(myR==='manager'&&dayRole(pid)!=='cashier')?[]:planOf(pid,date,doc).filter(i=>mgr||(i.role||'barista')===dayRole(pid));const marks=doc?.marks||{};const crew=doc?.crew||{};
   const c=classify(pid,date,plan,marks,now);
   const myC=b?crew[b]:null;const myIn=myC&&myC.in;
   const inIds=Object.keys(crew).filter(id=>crew[id]&&crew[id].in).sort((x,y)=>crew[x].in.at-crew[y].in.at);
@@ -1166,6 +1170,7 @@ function viewNow(){
     if(S.busy['bk'+pid])acts.append(h('button',{class:'btn gold grow',disabled:true},h('span',{class:'spin'}),h('span',{text:'Загружаю фото…'})));
     else if(br)acts.append(h('button',{class:'btn gold grow',onclick:()=>pickPhoto({cb:f=>doBreak(pid,'in',f)}),html:I.cam},h('span',{text:'Пришёл — фото'})));
     else{if(!(myC.brk&&myC.brk.length)&&breakAllowed())acts.append(h('button',{class:'btn night-ghost',onclick:()=>breakSheet(pid)},'Отход — 1 час'));
+      if(S.me&&S.me.role==='manager')acts.append(h('button',{class:'btn '+(myC.as==='cashier'?'night-ghost':'gold'),onclick:()=>setAsCashier(pid,myC.as!=='cashier')},myC.as==='cashier'?'Убрать отчёты кассира':'Делать отчёты кассира'));
       acts.append(h('button',{class:'btn night-ghost',onclick:()=>checkOutSheet(pid)},'Ушёл — селфи'));}}
   if(b)acts.append(h('button',{class:'btn night-ghost',onclick:problemSheet,html:I.flag},h('span',{text:'Проблема'})));
   if(!b&&!mgr)acts.append(h('button',{class:'btn gold grow',onclick:pickSheet},'Выбрать себя'));
@@ -1183,7 +1188,7 @@ function viewNow(){
   const queue=[...c.overdue.slice().sort(byDl).map(i=>[i,true]),...cur.filter(i=>!i.opt).sort(byDl).map(i=>[i,false]),...cur.filter(i=>i.opt).map(i=>[i,false])];
   const curReq=cur.filter(i=>!i.opt);
   let head,sub='';
-  if(!plan.length&&(!mgr||(S.me&&S.me.role==='manager'))){head='Ваши отметки — приход и уход';sub='Задач в чек-листе у вас нет.';}
+  if(!plan.length&&(!mgr||(S.me&&S.me.role==='manager'))){head='Ваши отметки — приход и уход';sub=S.me&&S.me.role==='manager'?'Если сегодня нет кассира — нажмите «Делать отчёты кассира».':'Задач в чек-листе у вас нет.';}
   else if(curReq.length){const dl=Math.min(...curReq.map(i=>i.dl));head=`Осталось ${curReq.length} ${plural(curReq.length,'задача','задачи','задач')} до ${tm(dl)}`;sub=PHASE[c.phase];}
   else if(c.overdue.length)head='Закройте просроченное';
   else{head='Сейчас всё сделано';sub=c.next?'Следующий отчёт откроется в '+tm(c.next):(c.later.length?'Закрытие можно начать заранее — оно ниже':'');}
@@ -1447,7 +1452,7 @@ function tabelData(docs,key){
   const [y,m]=key.split('-').map(Number);const dim=new Date(y,m,0).getDate();const by={};const shifts=[];
   for(const d of [...docs].sort((a,b)=>(a.date+a.point)<(b.date+b.point)?-1:1))for(const [b,c] of Object.entries(d.crew||{})){if(!c||!c.in)continue;
     const r=by[b]||(by[b]={b,days:{},total:0,n:0,miss:0,sum:0,noRate:0,hc:0});const day=+d.date.slice(8);const hh=payHours(d,c,b);const open=!c.out&&d.date===S.today;
-    const pos=posOf(b,c);const rate=pos==='runner'?null:rateOf(b,pos,d.date);const sum=FIXED.includes(pos)?null:shiftPay(d,b,c,hh,pos);
+    const pos=FIXED.includes(roleOf(b))?roleOf(b):posOf(b,c);const rate=pos==='runner'?null:rateOf(b,pos,d.date);const sum=FIXED.includes(pos)?null:shiftPay(d,b,c,hh,pos);
     const cell=r.days[day]||(r.days[day]={h:0,miss:false,open:false,cash:false});r.n++;if(pos==='cashier'&&roleOf(b)!=='cashier')cell.cash=true;
     if(hh==null){if(open)cell.open=true;else{cell.miss=true;r.miss++;}}else{cell.h+=hh;r.total+=hh;if(pos==='cashier'&&roleOf(b)!=='cashier')r.hc+=hh;if(sum!=null)r.sum+=sum;else if(!FIXED.includes(pos))r.noRate++;}
     shifts.push({d,b,c,hh,open,pos,rate,sum});}
@@ -1679,7 +1684,7 @@ const live={},chans={},bumpT={};
 function onTable(t,fn){(live[t]=live[t]||new Set()).add(fn);if(!chans[t]&&sb)chans[t]=sb.channel('rt-'+t).on('postgres_changes',{event:'*',schema:'public',table:t},()=>bump(t)).subscribe();return()=>live[t].delete(fn);}
 function bump(t){clearTimeout(bumpT[t]);bumpT[t]=setTimeout(()=>{(live[t]||[]).forEach(f=>f());},200);}
 function refreshAll(){Object.keys(live).forEach(bump);}
-const RPC_TBL={crew_in:'days',crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_update2:'staff',staff_set_pw:'staff'};
+const RPC_TBL={crew_as:'days',crew_in:'days',crew_break:'days',mark_set:'days',mark_patch:'days',mark_clear:'days',crew_check:'days',ensure_day:'days',req_answer:'requests',problem_close:'problems',staff_create:'staff',staff_update:'staff',staff_update2:'staff',staff_set_pw:'staff'};
 async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw dbErr(error);
   const t=RPC_TBL[fn]||(args&&args.tbl);if(t)bump(t);return data;}
 const mkSnap=row=>({id:row?row.id:null,exists:!!row,data:()=>row?row.data:undefined,metadata:{}});
@@ -1915,7 +1920,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-15a';let updT=0;
+const BUILD='2026-11-20a';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
