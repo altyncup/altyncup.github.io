@@ -928,6 +928,7 @@ function taskAction(it,pid,date){
   if(!me())return{fn:pickSheet,label:'Выбрать себя',short:'Кто вы?'};
   if(S.days[pid]?.crew?.[me()]?.out)return{fn:()=>toast('Вы уже отметили уход. Задачи теперь делает тот, кто на смене.'),label:'Вы ушли со смены',short:'Вы ушли'};
   if(!isIn(pid))return{fn:()=>needInSheet(pid),label:'Сначала отметьте приход',short:'Сначала приход',icon:I.cam};
+  if(it.kind==='video'&&it.items&&it.items.length)return{fn:()=>checklistSheet(pid,date,it),label:'Открыть чек-лист и снять видео',short:'Чек-лист',icon:I.list};
   if(it.kind==='video')return{fn:()=>pickVideo(pid,date,it),label:'Снять видео',short:'Видео',icon:PLAY};
   if(it.items&&it.items.length)return{fn:()=>checklistSheet(pid,date,it),label:it.photo?'Открыть чек-лист':'Открыть чек-лист',short:'Чек-лист',icon:I.list};
   if(it.kind==='check'&&it.photo)return{fn:()=>pickPhoto({pid,date,it}),label:'Снять фото',short:'Фото',icon:I.cam};
@@ -977,12 +978,12 @@ function checklistSheet(pid,date,it){
   const boxes=it.items.map((x,i)=>{const cb=h('input',{type:'checkbox',id:'ci'+i});cb.addEventListener('change',()=>{st[i]=cb.checked;upd();});
     return h('label',{class:'ci',for:'ci'+i},cb,h('span',{text:x}));});
   const left=h('p',{class:'hint','aria-live':'polite'});
-  const btn=h('button',{class:'btn gold block',disabled:true,html:it.photo?I.cam:I.check},h('span',{text:it.photo?'Всё готово — снять фото':'Всё готово'}));
+  const vid=it.kind==='video';const btn=h('button',{class:'btn gold block',disabled:true,html:vid?PLAY:it.photo?I.cam:I.check},h('span',{text:vid?'Всё готово — снять одно видео':it.photo?'Всё готово — снять фото':'Всё готово'}));
   upd=()=>{const n=it.items.filter((_,i)=>st[i]).length;btn.disabled=n<it.items.length;left.textContent=n<it.items.length?`Отмечено ${n} из ${it.items.length}`:'Всё отмечено';};
   btn.addEventListener('click',async()=>{closeSheet();const extra={items:it.items.slice()};
-    if(it.photo)pickPhoto({pid,date,it,extra});else{const m=await setMark(pid,date,it,extra);if(m)toastMark(pid,date,it,m);}});
+    if(vid)pickVideo(pid,date,it,{items:it.items.slice()});else if(it.photo)pickPhoto({pid,date,it,extra});else{const m=await setMark(pid,date,it,extra);if(m)toastMark(pid,date,it,m);}});
   upd();
-  openSheet(it.t,[it.photo&&it.hint?h('p',{class:'hint',text:'Потом фото. В кадре: '+it.hint}):null,h('div',{class:'cl'},boxes),left,btn].filter(Boolean),boxes[0]?.querySelector('input'));
+  openSheet(it.t,[vid?h('p',{class:'hint',text:'Отметьте всё, потом снимите ОДНО видео, где видно все пункты'+(it.hint?': '+it.hint:'')+'. До 45 секунд.'}):it.photo&&it.hint?h('p',{class:'hint',text:'Потом фото. В кадре: '+it.hint}):null,h('div',{class:'cl'},boxes),left,btn].filter(Boolean),boxes[0]?.querySelector('input'));
 }
 const listOf=(rows,pid,date,marks,o)=>h('div',{class:'list'},rows.map(([it,late])=>taskRow(it,marks[it.k],{pid,date,late,marks,ro:o&&o.ro,past:o&&o.past})));
 async function movDate(file){
@@ -1009,7 +1010,7 @@ async function handleVideo(file,ctx){
     const dur=await videoDuration(file);if(dur!=null&&dur>45)throw{code:'video_long'};
     const type=/webm/i.test(file.type)?'video/webm':'video/mp4';
     const up=await S.assets.upload(file,{type});
-    const data={video:up.id,nv:made==null,dur:dur!=null?Math.round(dur):null};
+    const data={video:up.id,nv:made==null,dur:dur!=null?Math.round(dur):null,...(ctx.items?{items:ctx.items}:{})};
     if(ctx.replace){const path=docPath(ctx.pid,ctx.date);
       await enqueue(path,()=>rpc('mark_patch',{p_day:path.split('/')[1],p_key:ctx.it.k,p_patch:{...data,ai:null}}));
       if(ctx.old)S.assets.delete(ctx.old).catch(()=>{});toast('Видео заменено');}
@@ -1920,7 +1921,7 @@ function onCfg(){
   if(!S.point||!pts.includes(S.point)){const saved=LS.get('point')||(S.me&&S.me.point);S.point=pts.includes(saved)?saved:pts[0];}
   subDays();subCur();
 }
-const BUILD='2026-11-20a';let updT=0;
+const BUILD='2026-11-20b';let updT=0;
 function checkUpdate(){if(Date.now()-updT<60e3)return;updT=Date.now();
   fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{const m=t.match(/const BUILD='([^']+)'/);
     if(m&&m[1]!==BUILD&&!document.getElementById('layer').firstChild&&!Object.keys(S.busy||{}).length)location.reload();}).catch(()=>{});}
